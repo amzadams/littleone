@@ -80,6 +80,7 @@
     <h2>Add something</h2>
     <p class="faint" style="margin:-.2rem 0 .7rem">
       Food, a symptom, a walk, a thought. Anything, any time of day.
+      Pictures are shrunk automatically, so a photo of a report works fine.
     </p>
 
     <div class="types" id="types"></div>
@@ -93,8 +94,7 @@
       </div>
       <div style="flex:1">
         <label class="fl" for="file" style="margin-top:0">Picture or file</label>
-        <input type="file" id="file" class="filepick"
-               accept="image/*,.pdf,.doc,.docx,.txt">
+        <input type="file" id="file" class="filepick" accept="image/*">
       </div>
     </div>
 
@@ -160,7 +160,7 @@
 <script type="module">
 import { requireAuth, drawNav, drawTop, SETUP, db, store, doc, getDoc, setDoc,
          collection, addDoc, deleteDoc, query, orderBy, limit, onSnapshot,
-         serverTimestamp, sref, uploadBytes, getDownloadURL, deleteObject,
+         serverTimestamp, putFile, removeFile, CLOUD_FILES,
          dayKey, prettyDate, toast, esc, myName, side, isDemo } from "./app.js";
 
 await requireAuth();
@@ -240,18 +240,10 @@ document.getElementById("add").onclick = async () => {
 
   try {
     if (f) {
-      const capMB = isDemo ? 2 : 10;
-      if (f.size > capMB * 1024 * 1024) {
-        toast("Too big, keep it under " + capMB + " MB");
-        btn.disabled = false; return;
-      }
-      prog.textContent = "Uploading";
-      filePath = "entries/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_");
-      const r = sref(store, filePath);
-      await uploadBytes(r, f);
-      fileUrl = await getDownloadURL(r);
-      fileName = f.name;
-      isImage = /^image\//.test(f.type);
+      prog.textContent = "Shrinking the picture";
+      const saved = await putFile(f);
+      fileUrl = saved.url; filePath = saved.path;
+      fileName = saved.name; isImage = saved.isImage;
     }
 
     await addDoc(collection(db, "entries"), {
@@ -374,7 +366,7 @@ document.getElementById("days").addEventListener("click", e => {
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-rm]"); if (!b) return;
   if (!confirm("Delete this entry?")) return;
-  if (b.dataset.path) { try { await deleteObject(sref(store, b.dataset.path)); } catch (x) {} }
+  await removeFile(b.dataset.path);
   await deleteDoc(doc(db, "entries", b.dataset.rm));
   toast("Deleted");
 });

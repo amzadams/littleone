@@ -1,74 +1,52 @@
 # Little One
 
 A private pregnancy site for two people. Static files on GitHub Pages, data in Firebase.
-
-Files are flat in the repo root, same as your other site, so GitHub Pages will not 404 on them.
-
----
-
-## 0. Look at it first, no Firebase needed
-
-`app.js` ships with `demo: true`. In that mode nothing talks to Firebase. Everything
-works, data saves into that one browser, and a yellow strip at the top lets you switch
-between posting as her and posting as you so you can see both card colours.
-
-**Double clicking `index.html` will not work.** Browsers block ES modules on `file://`.
-Two ways around it:
-
-- Easiest: upload to GitHub Pages now with `demo: true` and look at the live URL.
-- Locally: open a terminal in the folder and run `python -m http.server 8000`,
-  then visit `http://localhost:8000`.
-
-When you are happy with it, set `demo: false` and do steps 2 to 5.
+Everything sits flat in the repo root.
 
 ---
 
-## 1. Make the repo
+## Look at it first, no Firebase needed
 
-Make a **new** repo, not inside `amzadams.github.io`. Call it something like `littleone`.
-Upload every file here to the root. Settings, Pages, deploy from branch `main`, folder `/root`.
+`app.js` ships with `demo: true`. Nothing talks to Firebase, data saves into that one
+browser, and a yellow strip lets you switch between posting as her and as you.
 
-It will live at `https://amzadams.github.io/littleone/`.
-
-The HTML is public, which is fine. Nobody can read a single piece of her data
-without signing in, because of the rules in step 4.
+Double clicking `index.html` will not work, browsers block modules on `file://`.
+Either push it to GitHub Pages, or run `python -m http.server 8000` in the folder.
 
 ---
 
-## 2. Firebase project
+## Firebase setup
 
-1. console.firebase.google.com, Add project. Skip Analytics.
-2. Build, Authentication, Get started, enable **Email/Password**.
-3. Users tab, Add user, twice. One for her, one for you. Set real passwords.
-4. Build, Firestore Database, Create database, **production mode**, pick a US region.
-5. Build, Storage, Get started, production mode.
-6. Project settings, General, scroll to Your apps, click the web icon `</>`.
-   Register the app, copy the `firebaseConfig` object.
+No credit card needed. You are staying on the free Spark plan, which covers
+Authentication and Firestore. Cloud Storage is the only paid part and this site
+does not use it: pictures are shrunk in the browser and kept inside Firestore.
 
----
+### 1. Make the project
 
-## 3. Paste your config
+console.firebase.google.com, Add project, name it, skip Google Analytics.
 
-Open `app.js`. Replace the `firebaseConfig` block with yours, then fill in `SETUP`:
+### 2. Turn on sign in
 
-```js
-export const SETUP = {
-  dueDate: "2027-04-17",
-  herName: "Halima",
-  hisName: "Amz",
-  herEmail: "the email you created for her",
-  clinicName: "Altru Clinic",
-  clinicPhone: "+17017805000"
-};
-```
+Build, Authentication, Get started, **Email/Password**, enable, save.
 
-`herEmail` only decides which colour her cards are. Nothing else depends on it.
+Users tab, Add user, twice:
+- her email and a password you choose
+- your email and a password
 
----
+These are just labels for the site. Neither of you needs a real Gmail inbox for it,
+any address works, but use ones you will remember.
 
-## 4. Rules, this is the part that keeps it private
+### 3. Make the database
 
-Firestore, Rules tab. Replace everything with this, putting your two real emails in:
+Build, Firestore Database, Create database, **Start in production mode**, region
+`nam5` or any US one. Create.
+
+Do **not** touch Storage. You do not need it.
+
+### 4. Rules
+
+Firestore, Rules tab. Delete what is there, paste this with your two real emails,
+then Publish:
 
 ```
 rules_version = '2';
@@ -87,40 +65,55 @@ service cloud.firestore {
 }
 ```
 
-Storage, Rules tab, same idea:
+This is the part that keeps her data private. The HTML is public, the data is not.
+Without this anyone could read everything.
 
-```
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    function ours() {
-      return request.auth != null && request.auth.token.email in [
-        "her@example.com",
-        "you@example.com"
-      ];
-    }
-    match /{allPaths=**} {
-      allow read, write: if ours();
-    }
-  }
-}
+### 5. Allow your domain
+
+Authentication, Settings tab, Authorized domains, Add domain, `amzadams.github.io`.
+Without it sign in fails with `auth/unauthorized-domain`.
+
+### 6. Get your config
+
+Project settings (the gear), General, scroll to Your apps, click the web icon `</>`.
+Give it any nickname, Register app. Copy the `firebaseConfig` object it shows.
+
+### 7. Edit app.js
+
+Paste the config over the placeholder one, then set:
+
+```js
+export const SETUP = {
+  demo: false,
+  useCloudStorage: false,
+  dueDate: "2027-04-17",
+  herName: "Halima",
+  hisName: "Amz",
+  herEmail: "the email you created for her",
+  clinicName: "Altru Clinic",
+  clinicPhone: "+17017805000"
+};
 ```
 
-Publish both. Without these, anyone could read her data. With them, only your two accounts can.
+Commit the new `app.js`. Hard refresh. You should land on the sign in screen.
+
+### 8. Set the due date properly
+
+Sign in, go to More, Settings, and put in whatever date the clinic gave.
 
 ---
 
-## 5. Allow your domain
+## Pictures
 
-Authentication, Settings, Authorized domains, add `amzadams.github.io`.
-Otherwise sign in fails with an `auth/unauthorized-domain` error.
+Any picture is automatically shrunk to roughly 200 KB before saving, so scans,
+bump photos and photographed clinic reports all work. Firestore's free tier holds
+1 GB, which is thousands of pictures.
 
----
+PDFs and Word files are not supported on this setup. Photograph them instead.
 
-## 6. Icons
-
-Add `icon.png` (192x192) and `icon-512.png` (512x512) to the root so it looks right
-on the home screen. Any simple image works.
+If you ever want real file uploads: upgrade the Firebase project to Blaze, enable
+Storage, publish matching Storage rules, and set `useCloudStorage: true`. Blaze needs
+a card on file even though the usage would be free.
 
 ---
 
@@ -128,51 +121,41 @@ on the home screen. Any simple image works.
 
 | Page | What it does |
 |---|---|
-| `index.html` | The 40 week ring, countdown, this week, today's log, next visit, latest updates |
-| `log.html` | Nausea 1 to 5, water counter, prenatal and B6 checkoff, mood, notes, 14 day history |
+| `index.html` | 40 week ring, countdown, this week, today's summary, next visit, latest updates |
+| `log.html` | Timestamped entries of any kind with pictures, daily trackers, 14 day history |
 | `week.html` | All 40 weeks, tap any one |
-| `food.html` | Searchable food and medicine lookup, including Ghanaian dishes |
-| `appointments.html` | Visits, a running question list for each, notes after, calendar export |
-| `gallery.html` | Scan and bump photos, tagged with the week automatically |
-| `updates.html` | Shared feed, her status and your notes, colour coded by who wrote it |
-| `flags.html` | Warning signs with a one tap call button |
+| `food.html` | Searchable food and medicine lookup, Ghanaian dishes included |
+| `appointments.html` | Visits, question list per visit, notes after, calendar export |
+| `gallery.html` | Scans and bump photos, tagged with the week |
+| `updates.html` | Shared feed, colour coded by who wrote it |
+| `flags.html` | Warning signs with call buttons |
 | `settings.html` | Due date, LMP calculator, notifications |
 | `more.html` | Hub for everything above |
 
-Both of you see the same data live. If she logs water on her phone, it shows on yours.
-
 ---
 
-## Notifications, honestly
+## Sending it to her
 
-What works now: when either of you has the site open and the other posts an update,
-a browser notification pops. On her iPhone she must **add the site to the home screen
-first** (share button, Add to Home Screen), otherwise iOS blocks web notifications entirely.
+Send `https://amzadams.github.io/littleone/` and her email and password.
+Tell her to open it in **Safari**, not Chrome, since only Safari on iPhone can add it
+to the home screen, and iOS only allows notifications once it has been added that way.
+Share button, Add to Home Screen.
 
-What does not work yet: scheduled reminders when the site is closed, like "take your B6."
-That needs Firebase Cloud Messaging plus a scheduled Cloud Function, and Cloud Functions
-need the Blaze plan. It stays free at this volume but needs a card on file.
-
-Easier middle ground that costs nothing: appointments export to her phone calendar with
-the "Add to calendar" link, so the phone handles reminding her.
+She signs in once and stays signed in.
 
 ---
 
 ## Changing things
 
-The content is all in `data.js` and it is plain text. Edit the 40 week entries, add foods,
-add medicines, change the warning signs. No code knowledge needed, just keep the commas
-and quotes where they are.
-
-Colours live at the top of `style.css`.
+Content lives in `data.js` as plain text: the 40 weeks, foods, medicines, warning signs.
+Colours are at the top of `style.css`. Edit, commit, done. She sees it next time she opens it.
 
 ---
 
 ## Worth adding later
 
 - Kick counter, from week 28
-- Weight log with a simple chart
+- Weight log with a chart
 - Hospital bag checklist, around week 34
 - Contraction timer, week 37
 - Baby name list you both add to and vote on
-- Scheduled push reminders, once you are ready for Cloud Functions

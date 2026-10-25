@@ -28,6 +28,7 @@ import { getStorage, ref as fbSref, uploadBytes as fbUploadBytes,
 
 export const SETUP = {
   demo: true,                  // <-- true means no Firebase needed
+  useCloudStorage: false,      // false keeps you off the Blaze plan, images only
 
   dueDate: "2027-04-17",       // the clinic's date wins, change it after the scan
   herName: "Halima",
@@ -158,6 +159,79 @@ export const uploadBytes     = LIVE ? fbUploadBytes     : demo.uploadBytes;
 export const getDownloadURL  = LIVE ? fbGetDownloadURL  : demo.getDownloadURL;
 export const deleteObject    = LIVE ? fbDeleteObject    : demo.deleteObject;
 export const signOut         = LIVE ? fbSignOut         : async () => {};
+
+/* ---------- pictures ----------------------------------------
+   Two routes:
+   - inline  (default): the picture is shrunk in the browser and
+     kept inside the Firestore document. No Blaze plan, no card,
+     no Storage rules. Images only.
+   - cloud: real Cloud Storage. Needs the Blaze plan. Any file.
+   ------------------------------------------------------------ */
+
+export const CLOUD_FILES = LIVE && SETUP.useCloudStorage;
+
+const MAX_INLINE = 600 * 1024;   // stay well under Firestore's 1 MB limit
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("That file is not a readable image."));
+      img.src = fr.result;
+    };
+    fr.onerror = () => reject(new Error("Could not read the file."));
+    fr.readAsDataURL(file);
+  });
+}
+
+/* Shrink to a jpeg data url small enough to sit in a document. */
+export async function shrinkImage(file, maxDim = 1400) {
+  const img = await loadImage(file);
+  let dim = maxDim, quality = 0.74, url = "";
+
+  for (let pass = 0; pass < 7; pass++) {
+    const scale = Math.min(1, dim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    url = c.toDataURL("image/jpeg", quality);
+    if (url.length <= MAX_INLINE) return url;
+    if (quality > 0.42) quality -= 0.12; else dim = Math.round(dim * 0.75);
+  }
+  throw new Error("That picture will not compress small enough. Try a screenshot of it.");
+}
+
+/* Returns { url, path, name, isImage }. path is "" for inline. */
+export async function putFile(file) {
+  const isImage = /^image\//.test(file.type);
+
+  if (!CLOUD_FILES) {
+    if (!isImage) {
+      throw new Error("Only pictures can be saved on this setup. Photograph the document instead.");
+    }
+    const url = await shrinkImage(file);
+    return { url, path: "", name: file.name, isImage: true };
+  }
+
+  if (file.size > 10 * 1024 * 1024) throw new Error("Keep it under 10 MB.");
+  const path = "files/" + Date.now() + "_" + file.name.replace(/[^\w.\-]/g, "_");
+  const r = sref(store, path);
+  await uploadBytes(r, file);
+  const url = await getDownloadURL(r);
+  return { url, path, name: file.name, isImage };
+}
+
+export async function removeFile(path) {
+  if (!path || !CLOUD_FILES) return;
+  try { await deleteObject(sref(store, path)); } catch (e) {}
+}
 
 export let ME = null;
 

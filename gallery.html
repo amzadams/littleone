@@ -65,10 +65,10 @@
 </div>
 
 <script type="module">
-import { requireAuth, drawNav, drawTop, SETUP, db, store, collection, addDoc,
+import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc,
          doc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp,
-         sref, uploadBytes, getDownloadURL, deleteObject, getProfile, progress,
-         toast, esc, myName, shortDate } from "./app.js";
+         putFile, removeFile, getProfile, progress,
+         toast, esc, myName } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -88,29 +88,24 @@ document.getElementById("kinds").addEventListener("click", e => {
 document.getElementById("up").onclick = async () => {
   const f = document.getElementById("file").files[0];
   if (!f) { toast("Pick a picture first"); return; }
-  if (f.size > 8 * 1024 * 1024) { toast("Too big, keep it under 8 MB"); return; }
 
   const btn = document.getElementById("up");
   btn.disabled = true;
-  document.getElementById("prog").textContent = "Uploading";
+  document.getElementById("prog").textContent = "Shrinking the picture";
 
   try {
-    const path = `pictures/${Date.now()}_${f.name.replace(/[^\w.\-]/g, "_")}`;
-    const r = sref(store, path);
-    await uploadBytes(r, f);
-    const url = await getDownloadURL(r);
+    const saved = await putFile(f);
     await addDoc(collection(db, "photos"), {
-      url, path, kind,
+      url: saved.url, path: saved.path, kind,
       caption: document.getElementById("cap").value.trim(),
       week: p.week, by: myName(), createdAt: serverTimestamp()
     });
     document.getElementById("file").value = "";
     document.getElementById("cap").value = "";
     document.getElementById("prog").textContent = "";
-    toast("Uploaded");
+    toast("Saved");
   } catch (err) {
-    document.getElementById("prog").textContent =
-      "Upload failed. Check the Storage rules in Firebase.";
+    document.getElementById("prog").textContent = err.message || "Could not save that.";
   }
   btn.disabled = false;
 };
@@ -120,7 +115,7 @@ const lb = document.getElementById("lb");
 document.getElementById("lbClose").onclick = () => lb.classList.remove("on");
 document.getElementById("lbDel").onclick = async () => {
   if (!current || !confirm("Delete this picture?")) return;
-  try { await deleteObject(sref(store, current.path)); } catch (e) {}
+  await removeFile(current.path);
   await deleteDoc(doc(db, "photos", current.id));
   lb.classList.remove("on");
   toast("Deleted");
