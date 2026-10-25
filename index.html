@@ -119,19 +119,24 @@ document.getElementById("tipText").textContent = w[3];
 
 /* ---- today's log summary ---- */
 const key = dayKey();
-const snap = await getDoc(doc(db, "logs", key));
 const box = document.getElementById("todaySummary");
-if (!snap.exists()) {
-  box.innerHTML = `Nothing logged yet today. <a href="log.html">Start</a>`;
-} else {
-  const d = snap.data();
+
+onSnapshot(query(collection(db, "entries"), orderBy("at", "desc"), limit(200)), async s => {
+  const n = s.docs.filter(d => d.data().day === key).length;
+  const snap = await getDoc(doc(db, "logs", key));
   const bits = [];
-  if (d.nausea != null) bits.push("Nausea " + d.nausea + " of 5");
-  if (d.water) bits.push(d.water + " glasses of water");
-  if (d.prenatal) bits.push("prenatal taken");
-  if (d.b6) bits.push("B6 taken");
-  box.textContent = bits.length ? bits.join(", ") : "Logged, nothing noted.";
-}
+  if (n) bits.push(n + (n === 1 ? " entry" : " entries"));
+  if (snap.exists()) {
+    const d = snap.data();
+    if (d.nausea != null) bits.push("nausea " + d.nausea + " of 5");
+    if (d.water) bits.push(d.water + " glasses of water");
+    if (d.prenatal) bits.push("prenatal taken");
+    if (d.b6) bits.push("B6 taken");
+  }
+  box.innerHTML = bits.length
+    ? esc(bits.join(", "))
+    : `Nothing logged yet today. <a href="log.html">Start</a>`;
+});
 
 /* ---- next appointment ---- */
 const qa = query(collection(db, "appointments"), orderBy("date", "asc"));

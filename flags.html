@@ -20,30 +20,32 @@
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--rose); margin-top: .5rem; flex: none;
   }
-  .call-strip {
-    position: sticky; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-    margin-top: 1.4rem;
-  }
-  @media (min-width: 720px) { .call-strip { position: static; } }
+  .calls { display: flex; gap: .5rem; margin: 1rem 0 0; }
+  .calls a { flex: 1; text-align: center; }
 </style>
 </head>
 <body>
 
 <main class="wrap" id="main" hidden>
   <h1>Call the clinic if any of this happens</h1>
-  <p class="muted">Do not wait for the next appointment. These are the ones worth interrupting a doctor for.</p>
+  <p class="muted">Do not wait for the next appointment. These are worth interrupting a doctor for.</p>
 
-  <div id="list" style="border-top:1px solid var(--line);margin-top:1rem"></div>
-
-  <div class="call-strip">
-    <a class="btn wide" id="call" style="background:var(--rose)">Call the clinic now</a>
-    <a class="btn ghost wide" href="tel:911" style="margin-top:.5rem">Emergency, call 911</a>
+  <div class="calls">
+    <a class="btn" id="callTop" style="background:var(--rose)">Call the clinic</a>
+    <a class="btn ghost" href="tel:911">911</a>
   </div>
+
+  <div id="list" style="border-top:1px solid var(--line);margin-top:1.4rem"></div>
 
   <p class="faint" style="margin-top:1.2rem">
     Light spotting, mild cramping and ordinary aches are common and usually not a problem.
     If something feels wrong and is not on this list, call anyway. Nobody minds.
   </p>
+
+  <div class="calls" style="margin-bottom:1.5rem">
+    <a class="btn" id="callBottom" style="background:var(--rose)">Call the clinic</a>
+    <a class="btn ghost" href="tel:911">911</a>
+  </div>
 </main>
 
 <script type="module">
@@ -57,7 +59,9 @@ document.getElementById("main").hidden = false;
 document.getElementById("list").innerHTML = RED_FLAGS.map(f =>
   `<div class="flag"><span class="dot"></span><span>${esc(f)}</span></div>`).join("");
 
-document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+const tel = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+document.getElementById("callTop").href = tel;
+document.getElementById("callBottom").href = tel;
 </script>
 </body>
 </html>
