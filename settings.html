@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Settings</h1>
+
+  <section class="panel">
+    <h2>Due date</h2>
+    <p class="faint" style="margin:-.2rem 0 .6rem">
+      Change this to whatever the clinic gives after the scan. Everything else updates from it.
+    </p>
+    <input type="date" id="due">
+    <p class="muted" id="preview" style="margin:.7rem 0 0"></p>
+    <button class="btn wide" id="saveDue" style="margin-top:.7rem">Save due date</button>
+  </section>
+
+  <section class="panel">
+    <h2>Work out the due date</h2>
+    <p class="faint" style="margin:-.2rem 0 .6rem">
+      If you only know the first day of her last period, put it here.
+    </p>
+    <input type="date" id="lmp">
+    <p class="muted" id="lmpOut" style="margin:.7rem 0 0"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Notifications</h2>
+    <p class="faint" style="margin:-.2rem 0 .6rem">
+      Lets the site pop a message when the other person posts an update.
+      On iPhone, add the site to the home screen first or this will not work.
+    </p>
+    <button class="btn wide" id="notifyBtn">Turn on notifications</button>
+    <p class="faint" id="notifyState" style="margin:.6rem 0 0"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Add to home screen</h2>
+    <p class="muted" style="margin:0">
+      On iPhone, open this page in Safari, tap the share button, then Add to Home Screen.
+      On Android, open the browser menu and tap Install app. It then opens like a normal app.
+    </p>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, getProfile, saveProfile,
+         progress, prettyDate, toast, askNotify } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const prof = await getProfile();
+const due = document.getElementById("due");
+due.value = prof.dueDate || SETUP.dueDate;
+
+function preview(v) {
+  const p = progress(v);
+  document.getElementById("preview").textContent =
+    `That puts her at week ${p.week} and ${p.day} days, with ${p.daysLeft} days to go.`;
+}
+preview(due.value);
+due.addEventListener("change", () => preview(due.value));
+
+document.getElementById("saveDue").onclick = async () => {
+  await saveProfile({ dueDate: due.value });
+  toast("Due date saved");
+};
+
+document.getElementById("lmp").addEventListener("change", e => {
+  if (!e.target.value) return;
+  const d = new Date(e.target.value + "T00:00:00");
+  d.setDate(d.getDate() + 280);
+  const iso = d.toISOString().slice(0, 10);
+  document.getElementById("lmpOut").innerHTML =
+    `Estimated due date: <strong>${prettyDate(iso)}</strong>. ` +
+    `<button class="btn ghost" id="useIt" style="margin-top:.5rem">Use this date</button>`;
+  document.getElementById("useIt").onclick = () => {
+    due.value = iso; preview(iso); toast("Put it above, now save it");
+  };
+});
+
+const st = document.getElementById("notifyState");
+function showState() {
+  if (!("Notification" in window)) { st.textContent = "This browser does not support them."; return; }
+  st.textContent = Notification.permission === "granted" ? "Notifications are on."
+    : Notification.permission === "denied" ? "Blocked. Turn them back on in browser settings."
+    : "Not turned on yet.";
+}
+showState();
+document.getElementById("notifyBtn").onclick = async () => {
+  const ok = await askNotify();
+  showState();
+  if (ok) new Notification("Notifications are on", { body: "You will see updates here." });
+};
+</script>
+</body>
+</html>

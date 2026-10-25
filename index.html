@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Little One</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+
+  <section class="ring-panel">
+    <div class="ring-holder">
+      <svg viewBox="0 0 236 236" aria-hidden="true" id="ring"></svg>
+      <div class="ring-mid">
+        <span class="wk-label">week</span>
+        <span class="wk-num" id="wkNum">--</span>
+        <span class="wk-days" id="wkDays"></span>
+      </div>
+    </div>
+    <p class="countdown" id="countdown"></p>
+  </section>
+
+  <a class="alert-link" href="flags.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/>
+    <path d="M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    When to call the doctor straight away
+  </a>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>This week</h2>
+      <a href="week.html">All weeks</a>
+    </div>
+    <p class="size-line" id="sizeLine"></p>
+    <p class="muted" id="babyText"></p>
+    <p class="muted" id="momText"></p>
+    <hr class="hr" style="margin:.9rem 0">
+    <p class="muted" id="tipText" style="margin:0"></p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Today</h2>
+      <a href="log.html">Open log</a>
+    </div>
+    <div id="todaySummary" class="muted">Loading</div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Next visit</h2>
+      <a href="appointments.html">All visits</a>
+    </div>
+    <div id="nextAppt" class="muted">Loading</div>
+  </section>
+
+  <section>
+    <div class="panel-head" style="padding:0 .2rem">
+      <h2>Latest</h2>
+      <a href="updates.html">All updates</a>
+    </div>
+    <div id="feed"></div>
+  </section>
+
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, getProfile, progress, prettyDate,
+         SETUP, db, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
+         dayKey, esc, timeAgo, watchUpdatesForNotices } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("index.html");
+document.getElementById("main").hidden = false;
+
+const profile = await getProfile();
+const p = progress(profile.dueDate);
+
+/* ---- the ring: 40 segments, one per week ---- */
+const R = 100, CX = 118, CY = 118;
+const C = 2 * Math.PI * R;
+const per = C / 40;
+const seg = per - 4.2;
+let out = "";
+for (let i = 0; i < 40; i++) {
+  const wk = i + 1;
+  const cls = wk < p.week ? "done" : wk === p.week ? "now" : "";
+  out += `<circle class="ring-seg ${cls}" cx="${CX}" cy="${CY}" r="${R}"
+            stroke-dasharray="${seg} ${C - seg}"
+            stroke-dashoffset="${-i * per}"></circle>`;
+}
+document.getElementById("ring").innerHTML = out;
+
+document.getElementById("wkNum").textContent = p.week;
+document.getElementById("wkDays").textContent =
+  p.day === 0 ? "and 0 days" : "and " + p.day + (p.day === 1 ? " day" : " days");
+
+const weeksLeft = Math.floor(p.daysLeft / 7);
+document.getElementById("countdown").innerHTML =
+  `<strong>${p.daysLeft}</strong> days to go, about ${weeksLeft} weeks<br>` +
+  `<span class="faint">Due ${prettyDate(p.due)} &middot; trimester ${p.trimester}</span>`;
+
+/* ---- this week's content ---- */
+const w = WEEKS[p.week] || WEEKS[40];
+document.getElementById("sizeLine").textContent = "About the size of " + w[0] + ".";
+document.getElementById("babyText").textContent = w[1];
+document.getElementById("momText").textContent = w[2];
+document.getElementById("tipText").textContent = w[3];
+
+/* ---- today's log summary ---- */
+const key = dayKey();
+const snap = await getDoc(doc(db, "logs", key));
+const box = document.getElementById("todaySummary");
+if (!snap.exists()) {
+  box.innerHTML = `Nothing logged yet today. <a href="log.html">Start</a>`;
+} else {
+  const d = snap.data();
+  const bits = [];
+  if (d.nausea != null) bits.push("Nausea " + d.nausea + " of 5");
+  if (d.water) bits.push(d.water + " glasses of water");
+  if (d.prenatal) bits.push("prenatal taken");
+  if (d.b6) bits.push("B6 taken");
+  box.textContent = bits.length ? bits.join(", ") : "Logged, nothing noted.";
+}
+
+/* ---- next appointment ---- */
+const qa = query(collection(db, "appointments"), orderBy("date", "asc"));
+onSnapshot(qa, s => {
+  const now = dayKey();
+  const next = s.docs.map(d => d.data()).find(a => a.date >= now);
+  const n = document.getElementById("nextAppt");
+  if (!next) { n.innerHTML = `None booked. <a href="appointments.html">Add one</a>`; return; }
+  const days = Math.round((new Date(next.date + "T00:00:00") - new Date(now + "T00:00:00")) / 86400000);
+  n.innerHTML = `<span style="font-family:var(--serif);font-size:1.15rem;color:var(--ink)">
+      ${esc(next.title || "Checkup")}</span><br>
+    ${prettyDate(next.date)}${next.time ? " at " + esc(next.time) : ""}<br>
+    <span class="faint">${days === 0 ? "Today" : days === 1 ? "Tomorrow" : "in " + days + " days"}
+    ${next.place ? " &middot; " + esc(next.place) : ""}</span>`;
+});
+
+/* ---- latest two updates ---- */
+const qu = query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(2));
+onSnapshot(qu, s => {
+  const f = document.getElementById("feed");
+  if (s.empty) { f.innerHTML = `<p class="empty">Nothing posted yet.</p>`; return; }
+  f.innerHTML = s.docs.map(snapDoc => {
+    const d = snapDoc.data();
+    return `<article class="card ${d.side === "him" ? "from-him" : ""}">
+      <div class="meta">${esc(d.author)} &middot; ${timeAgo(d.createdAt)}</div>
+      <div class="body ${d.kind === "note" ? "note" : ""}">${esc(d.text)}</div>
+    </article>`;
+  }).join("");
+});
+
+watchUpdatesForNotices();
+</script>
+</body>
+</html>

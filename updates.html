@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Updates</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .kinds { display: flex; gap: .4rem; margin: .55rem 0 .7rem; }
+  .kinds button {
+    border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+    border-radius: 999px; padding: .32rem .8rem;
+    font-family: var(--sans); font-size: .8rem; cursor: pointer;
+  }
+  .kinds button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  .card .del {
+    border: none; background: none; color: var(--ink-faint);
+    font-size: .74rem; cursor: pointer; padding: .2rem 0 0;
+  }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Updates</h1>
+  <p class="faint" style="margin-top:-.3rem">Anything either of you wants the other to see.</p>
+
+  <section class="panel">
+    <div class="kinds" id="kinds">
+      <button data-k="status" aria-pressed="true">How I feel</button>
+      <button data-k="note" aria-pressed="false">A note</button>
+      <button data-k="milestone" aria-pressed="false">Milestone</button>
+    </div>
+    <textarea id="txt" placeholder="Felt the first proper kick this morning."></textarea>
+    <button class="btn wide" id="post" style="margin-top:.7rem">Post</button>
+  </section>
+
+  <div id="feed"></div>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc, doc,
+         deleteDoc, query, orderBy, limit, onSnapshot, serverTimestamp,
+         timeAgo, esc, toast, myName, side, watchUpdatesForNotices } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+let kind = "status";
+document.getElementById("kinds").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  kind = b.dataset.k;
+  document.querySelectorAll("#kinds button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+  document.getElementById("txt").placeholder =
+    kind === "note" ? "Thinking about you. Rest today."
+    : kind === "milestone" ? "First kick felt."
+    : "Felt the first proper kick this morning.";
+});
+
+document.getElementById("post").onclick = async () => {
+  const text = document.getElementById("txt").value.trim();
+  if (!text) { toast("Write something first"); return; }
+  await addDoc(collection(db, "updates"), {
+    text, kind, author: myName(), side: side(), createdAt: serverTimestamp()
+  });
+  document.getElementById("txt").value = "";
+  toast("Posted");
+};
+
+const KINDLABEL = { status: "", note: "note", milestone: "milestone" };
+
+const q = query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(60));
+onSnapshot(q, snap => {
+  const f = document.getElementById("feed");
+  if (snap.empty) {
+    f.innerHTML = `<p class="empty">Nothing yet. Post the first one.</p>`;
+    return;
+  }
+  f.innerHTML = snap.docs.map(d => {
+    const u = d.data();
+    const tag = KINDLABEL[u.kind] ? " &middot; " + KINDLABEL[u.kind] : "";
+    return `<article class="card ${u.side === "him" ? "from-him" : ""}">
+      <div class="meta">${esc(u.author)} &middot; ${timeAgo(u.createdAt)}${tag}</div>
+      <div class="body ${u.kind === "note" ? "note" : ""}">${esc(u.text)}</div>
+      ${u.side === side() ? `<button class="del" data-id="${d.id}">Delete</button>` : ""}
+    </article>`;
+  }).join("");
+
+  f.querySelectorAll(".del").forEach(b => {
+    b.onclick = async () => {
+      await deleteDoc(doc(db, "updates", b.dataset.id));
+      toast("Deleted");
+    };
+  });
+});
+
+watchUpdatesForNotices();
+</script>
+</body>
+</html>

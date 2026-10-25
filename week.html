@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Week by week</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .weekstrip {
+    display: flex; gap: .35rem; overflow-x: auto;
+    padding: .2rem .1rem 1rem; scrollbar-width: none;
+  }
+  .weekstrip::-webkit-scrollbar { display: none; }
+  .weekstrip button {
+    flex: none; width: 42px; height: 42px;
+    border-radius: 50%; border: 1px solid var(--line);
+    background: transparent; color: var(--ink-soft);
+    font-family: var(--sans); font-size: .88rem; cursor: pointer;
+  }
+  .weekstrip button.past { background: #E3E9E1; border-color: #E3E9E1; }
+  .weekstrip button[aria-current="true"] {
+    background: var(--gold); border-color: var(--gold); color: #fff;
+  }
+  .weekstrip button.live { box-shadow: inset 0 0 0 2px var(--sage); }
+  .big-size {
+    font-family: var(--serif); font-size: 2rem; line-height: 1.15;
+    margin: .2rem 0 1rem;
+  }
+  .defn { margin-bottom: 1.1rem; }
+  .defn .k { font-size: .78rem; color: var(--ink-faint); margin-bottom: .1rem; }
+  .defn .v { font-size: .97rem; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Week by week</h1>
+  <p class="faint" style="margin-top:-.3rem">Tap any week. The ringed one is where she is now.</p>
+
+  <div class="weekstrip" id="strip"></div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 id="wTitle">Week</h2>
+      <span class="faint" id="wTri"></span>
+    </div>
+    <p class="big-size" id="wSize"></p>
+
+    <div class="defn">
+      <div class="k">The baby</div>
+      <div class="v" id="wBaby"></div>
+    </div>
+    <div class="defn">
+      <div class="k">Her body</div>
+      <div class="v" id="wMom"></div>
+    </div>
+    <div class="defn" style="margin-bottom:0">
+      <div class="k">Worth doing</div>
+      <div class="v" id="wTip"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>What is coming</h2>
+    <div class="rows" id="ahead"></div>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, getProfile, progress, SETUP } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("week.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+const live = Math.min(40, Math.max(4, p.week));
+let shown = live;
+
+const strip = document.getElementById("strip");
+strip.innerHTML = Object.keys(WEEKS).map(w => {
+  const n = Number(w);
+  return `<button data-w="${n}" class="${n < live ? "past" : ""} ${n === live ? "live" : ""}">${n}</button>`;
+}).join("");
+
+function tri(w) { return w <= 13 ? "first trimester" : w <= 27 ? "second trimester" : "third trimester"; }
+
+function show(w) {
+  shown = w;
+  const d = WEEKS[w];
+  document.getElementById("wTitle").textContent = "Week " + w + (w === live ? ", now" : "");
+  document.getElementById("wTri").textContent = tri(w);
+  document.getElementById("wSize").textContent = "About the size of " + d[0] + ".";
+  document.getElementById("wBaby").textContent = d[1];
+  document.getElementById("wMom").textContent = d[2];
+  document.getElementById("wTip").textContent = d[3];
+  strip.querySelectorAll("button").forEach(b =>
+    b.setAttribute("aria-current", String(Number(b.dataset.w) === w)));
+  strip.querySelector(`button[data-w="${w}"]`)
+       .scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+}
+
+strip.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (b) show(Number(b.dataset.w));
+});
+
+show(live);
+
+/* next four weeks ahead */
+const ahead = [];
+for (let i = 1; i <= 4; i++) if (WEEKS[live + i]) ahead.push(live + i);
+document.getElementById("ahead").innerHTML = ahead.map(w => `
+  <div class="row">
+    <div class="row-main">
+      <div class="t">Week ${w}</div>
+      <div class="s">${WEEKS[w][3]}</div>
+    </div>
+  </div>`).join("") || `<p class="empty">Any day now.</p>`;
+</script>
+</body>
+</html>

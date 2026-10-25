@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Visits</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .appt { border-left: 4px solid var(--sage); }
+  .appt.past { border-left-color: var(--line); opacity: .72; }
+  .qrow { display: flex; gap: .5rem; align-items: flex-start; padding: .4rem 0; }
+  .qrow button.x {
+    border: none; background: none; color: var(--ink-faint);
+    font-size: 1.05rem; cursor: pointer; padding: 0 .2rem; line-height: 1;
+  }
+  .two { display: flex; gap: .5rem; }
+  .two > * { flex: 1; }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Visits</h1>
+  <p class="faint" style="margin-top:-.3rem">Add a visit, then build up the questions between now and then.</p>
+
+  <section class="panel">
+    <h2>Add a visit</h2>
+    <label class="fl" for="t">What is it</label>
+    <input type="text" id="t" placeholder="Routine checkup, anomaly scan, glucose test">
+    <div class="two">
+      <div>
+        <label class="fl" for="d">Date</label>
+        <input type="date" id="d">
+      </div>
+      <div>
+        <label class="fl" for="tm">Time</label>
+        <input type="time" id="tm">
+      </div>
+    </div>
+    <label class="fl" for="pl">Where</label>
+    <input type="text" id="pl" placeholder="Altru Clinic, Grand Forks">
+    <button class="btn wide" id="add" style="margin-top:.8rem">Add visit</button>
+  </section>
+
+  <div id="list"></div>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc, doc,
+         updateDoc, deleteDoc, query, orderBy, onSnapshot, prettyDate, dayKey,
+         toast, esc, myName } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+document.getElementById("pl").value = SETUP.clinicName;
+
+document.getElementById("add").onclick = async () => {
+  const title = document.getElementById("t").value.trim() || "Checkup";
+  const date  = document.getElementById("d").value;
+  if (!date) { toast("Pick a date first"); return; }
+  await addDoc(collection(db, "appointments"), {
+    title, date,
+    time:  document.getElementById("tm").value || "",
+    place: document.getElementById("pl").value.trim(),
+    questions: [], notes: "", addedBy: myName()
+  });
+  document.getElementById("t").value = "";
+  document.getElementById("d").value = "";
+  document.getElementById("tm").value = "";
+  toast("Visit added");
+};
+
+function icsLink(a) {
+  const d = a.date.replace(/-/g, "");
+  const t = (a.time || "09:00").replace(":", "") + "00";
+  const end = String(Number((a.time || "09:00").slice(0, 2)) + 1).padStart(2, "0")
+            + (a.time || "09:00").slice(3, 5) + "00";
+  const ics = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+    "DTSTART:" + d + "T" + t, "DTEND:" + d + "T" + end,
+    "SUMMARY:" + a.title, "LOCATION:" + (a.place || ""),
+    "DESCRIPTION:" + (a.questions || []).join("; "),
+    "END:VEVENT", "END:VCALENDAR"
+  ].join("\r\n");
+  return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+}
+
+const q = query(collection(db, "appointments"), orderBy("date", "asc"));
+onSnapshot(q, snap => {
+  const now = dayKey();
+  const list = document.getElementById("list");
+  if (snap.empty) {
+    list.innerHTML = `<p class="empty">No visits yet. Add the next one above.</p>`;
+    return;
+  }
+  list.innerHTML = snap.docs.map(d => {
+    const a = d.data(), past = a.date < now;
+    const qs = a.questions || [];
+    return `<section class="panel appt ${past ? "past" : ""}" data-id="${d.id}">
+      <div class="panel-head">
+        <h2>${esc(a.title)}</h2>
+        <a href="${icsLink(a)}" download="visit.ics">Add to calendar</a>
+      </div>
+      <p class="muted" style="margin-bottom:.8rem">
+        ${prettyDate(a.date)}${a.time ? " at " + esc(a.time) : ""}
+        ${a.place ? "<br><span class='faint'>" + esc(a.place) + "</span>" : ""}
+      </p>
+
+      <h3 style="margin-bottom:.2rem">Questions to ask</h3>
+      <div class="qlist">${
+        qs.length
+          ? qs.map((qq, i) => `<div class="qrow">
+              <span style="flex:1;font-size:.93rem">${esc(qq)}</span>
+              <button class="x" data-del="${i}" aria-label="Remove">&times;</button>
+             </div>`).join("")
+          : `<p class="faint" style="margin:.2rem 0 .5rem">Nothing yet. Add them as they come up.</p>`
+      }</div>
+      <div class="two" style="margin-top:.4rem">
+        <input type="text" class="qin" placeholder="Is the iron level okay?">
+        <button class="btn ghost qadd" style="flex:0 0 auto">Add</button>
+      </div>
+
+      <h3 style="margin:1rem 0 .2rem">What the doctor said</h3>
+      <textarea class="nts" placeholder="Notes from the visit">${esc(a.notes || "")}</textarea>
+      <div class="two" style="margin-top:.6rem">
+        <button class="btn ghost nsave">Save notes</button>
+        <button class="btn ghost rm" style="color:var(--rose)">Delete visit</button>
+      </div>
+    </section>`;
+  }).join("");
+
+  list.querySelectorAll(".panel").forEach(p => {
+    const id = p.dataset.id;
+    const data = snap.docs.find(x => x.id === id).data();
+
+    p.querySelector(".qadd").onclick = async () => {
+      const inp = p.querySelector(".qin");
+      const v = inp.value.trim();
+      if (!v) return;
+      await updateDoc(doc(db, "appointments", id),
+        { questions: [...(data.questions || []), v] });
+      inp.value = "";
+    };
+    p.querySelector(".qin").addEventListener("keydown", e => {
+      if (e.key === "Enter") p.querySelector(".qadd").click();
+    });
+    p.querySelectorAll("[data-del]").forEach(b => {
+      b.onclick = async () => {
+        const arr = [...(data.questions || [])];
+        arr.splice(Number(b.dataset.del), 1);
+        await updateDoc(doc(db, "appointments", id), { questions: arr });
+      };
+    });
+    p.querySelector(".nsave").onclick = async () => {
+      await updateDoc(doc(db, "appointments", id),
+        { notes: p.querySelector(".nts").value });
+      toast("Notes saved");
+    };
+    p.querySelector(".rm").onclick = async () => {
+      if (!confirm("Delete this visit?")) return;
+      await deleteDoc(doc(db, "appointments", id));
+      toast("Deleted");
+    };
+  });
+});
+</script>
+</body>
+</html>

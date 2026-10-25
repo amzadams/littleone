@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Warning signs</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .flag {
+    display: flex; gap: .7rem; align-items: flex-start;
+    padding: .8rem 0; border-bottom: 1px solid var(--line);
+    font-size: 1rem;
+  }
+  .flag .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--rose); margin-top: .5rem; flex: none;
+  }
+  .call-strip {
+    position: sticky; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    margin-top: 1.4rem;
+  }
+  @media (min-width: 720px) { .call-strip { position: static; } }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Call the clinic if any of this happens</h1>
+  <p class="muted">Do not wait for the next appointment. These are the ones worth interrupting a doctor for.</p>
+
+  <div id="list" style="border-top:1px solid var(--line);margin-top:1rem"></div>
+
+  <div class="call-strip">
+    <a class="btn wide" id="call" style="background:var(--rose)">Call the clinic now</a>
+    <a class="btn ghost wide" href="tel:911" style="margin-top:.5rem">Emergency, call 911</a>
+  </div>
+
+  <p class="faint" style="margin-top:1.2rem">
+    Light spotting, mild cramping and ordinary aches are common and usually not a problem.
+    If something feels wrong and is not on this list, call anyway. Nobody minds.
+  </p>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, esc } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+document.getElementById("list").innerHTML = RED_FLAGS.map(f =>
+  `<div class="flag"><span class="dot"></span><span>${esc(f)}</span></div>`).join("");
+
+document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+</script>
+</body>
+</html>

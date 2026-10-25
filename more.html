@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>More</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .big-link {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .8rem; padding: .95rem 0; border-bottom: 1px solid var(--line);
+    text-decoration: none; color: var(--ink);
+  }
+  .big-link .t { font-family: var(--serif); font-size: 1.12rem; }
+  .big-link .s { font-size: .82rem; color: var(--ink-faint); }
+  .big-link .chev { color: var(--ink-faint); font-size: 1.1rem; }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>More</h1>
+
+  <nav style="border-top:1px solid var(--line);margin-top:.6rem">
+    <a class="big-link" href="appointments.html">
+      <span><span class="t">Visits</span><br><span class="s" id="apptSub">Dates, questions, what the doctor said</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="gallery.html">
+      <span><span class="t">Pictures</span><br><span class="s">Scans and the bump over time</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="updates.html">
+      <span><span class="t">Updates</span><br><span class="s">Anything either of you wants to share</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="flags.html">
+      <span><span class="t">Warning signs</span><br><span class="s">When to call straight away</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="settings.html">
+      <span><span class="t">Settings</span><br><span class="s">Due date, names, notifications</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+  </nav>
+
+  <section class="panel" style="margin-top:1.4rem">
+    <h2>Clinic</h2>
+    <p class="muted" id="clinic"></p>
+    <a class="btn wide" id="call">Call the clinic</a>
+  </section>
+
+  <button class="btn ghost wide" id="out" style="margin-top:1rem">Sign out</button>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, auth, signOut, esc,
+         db, collection, query, orderBy, onSnapshot, dayKey, prettyDate } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+document.getElementById("clinic").textContent = SETUP.clinicName + ", " + SETUP.clinicPhone;
+document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+
+onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
+  const now = dayKey();
+  const next = s.docs.map(d => d.data()).find(a => a.date >= now);
+  document.getElementById("apptSub").textContent =
+    next ? "Next: " + prettyDate(next.date) : "Dates, questions, what the doctor said";
+});
+
+document.getElementById("out").onclick = async () => {
+  await signOut(auth);
+  location.replace("login.html");
+};
+</script>
+</body>
+</html>

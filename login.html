@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { padding-bottom: 2rem; display: grid; place-items: center; min-height: 100vh; }
+  .box { width: 100%; max-width: 360px; padding: 0 1.1rem; }
+  .brand { font-family: var(--serif); font-size: 2.1rem; margin-bottom: .2rem; }
+</style>
+</head>
+<body>
+<div class="box">
+  <p class="brand">Little One</p>
+  <p class="faint" style="margin-bottom:1.6rem">Private. Just the two of you.</p>
+
+  <label class="fl" for="em">Email</label>
+  <input type="email" id="em" autocomplete="username">
+  <label class="fl" for="pw">Password</label>
+  <input type="password" id="pw" autocomplete="current-password">
+  <button class="btn wide" id="go" style="margin-top:1rem">Sign in</button>
+  <p class="faint" id="err" style="margin-top:.8rem;color:var(--rose)"></p>
+</div>
+
+<script type="module">
+import { auth, signIn, isDemo } from "./app.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const next = new URLSearchParams(location.search).get("next") || "index.html";
+
+if (isDemo) location.replace(next);
+else onAuthStateChanged(auth, u => { if (u) location.replace(next); });
+
+async function go() {
+  const err = document.getElementById("err");
+  err.textContent = "";
+  const btn = document.getElementById("go");
+  btn.disabled = true;
+  try {
+    await signIn(document.getElementById("em").value.trim(),
+                 document.getElementById("pw").value);
+    location.replace(next);
+  } catch (e) {
+    err.textContent = e.code === "auth/invalid-credential"
+      ? "That email and password do not match."
+      : "Could not sign in. " + (e.code || "");
+    btn.disabled = false;
+  }
+}
+document.getElementById("go").onclick = go;
+document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+</script>
+</body>
+</html>

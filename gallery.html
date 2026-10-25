@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pictures</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .kinds { display: flex; gap: .4rem; margin: .2rem 0 .7rem; }
+  .kinds button {
+    flex: 1; border: 1px solid var(--line); background: transparent;
+    color: var(--ink-soft); border-radius: var(--r-md); padding: .5rem 0;
+    font-family: var(--sans); font-size: .87rem; cursor: pointer;
+  }
+  .kinds button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(28,43,35,.94);
+    display: none; align-items: center; justify-content: center;
+    z-index: 80; padding: 1rem;
+  }
+  .lightbox.on { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 80vh; border-radius: var(--r-md); }
+  .lightbox .close {
+    position: absolute; top: calc(1rem + env(safe-area-inset-top, 0px)); right: 1rem;
+    background: none; border: none; color: #fff; font-size: 1.8rem; cursor: pointer;
+  }
+  .lightbox .rm {
+    position: absolute; bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px));
+    background: none; border: 1px solid rgba(255,255,255,.4);
+    color: #fff; border-radius: var(--r-md); padding: .5rem 1rem;
+    font-family: var(--sans); font-size: .85rem; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Pictures</h1>
+  <p class="faint" style="margin-top:-.3rem">Scans, the bump, anything worth keeping.</p>
+
+  <section class="panel">
+    <div class="kinds" id="kinds">
+      <button data-k="scan" aria-pressed="true">Scan</button>
+      <button data-k="bump" aria-pressed="false">Bump</button>
+      <button data-k="other" aria-pressed="false">Other</button>
+    </div>
+    <input type="text" id="cap" placeholder="Caption, optional">
+    <label class="fl" for="file">Choose a picture</label>
+    <input type="file" id="file" accept="image/*">
+    <button class="btn wide" id="up" style="margin-top:.8rem">Upload</button>
+    <p class="faint" id="prog" style="margin:.6rem 0 0"></p>
+  </section>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<div class="lightbox" id="lb">
+  <button class="close" id="lbClose" aria-label="Close">&times;</button>
+  <img id="lbImg" alt="">
+  <button class="rm" id="lbDel">Delete this picture</button>
+</div>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, store, collection, addDoc,
+         doc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp,
+         sref, uploadBytes, getDownloadURL, deleteObject, getProfile, progress,
+         toast, esc, myName, shortDate } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+let kind = "scan";
+
+document.getElementById("kinds").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  kind = b.dataset.k;
+  document.querySelectorAll("#kinds button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+});
+
+document.getElementById("up").onclick = async () => {
+  const f = document.getElementById("file").files[0];
+  if (!f) { toast("Pick a picture first"); return; }
+  if (f.size > 8 * 1024 * 1024) { toast("Too big, keep it under 8 MB"); return; }
+
+  const btn = document.getElementById("up");
+  btn.disabled = true;
+  document.getElementById("prog").textContent = "Uploading";
+
+  try {
+    const path = `pictures/${Date.now()}_${f.name.replace(/[^\w.\-]/g, "_")}`;
+    const r = sref(store, path);
+    await uploadBytes(r, f);
+    const url = await getDownloadURL(r);
+    await addDoc(collection(db, "photos"), {
+      url, path, kind,
+      caption: document.getElementById("cap").value.trim(),
+      week: p.week, by: myName(), createdAt: serverTimestamp()
+    });
+    document.getElementById("file").value = "";
+    document.getElementById("cap").value = "";
+    document.getElementById("prog").textContent = "";
+    toast("Uploaded");
+  } catch (err) {
+    document.getElementById("prog").textContent =
+      "Upload failed. Check the Storage rules in Firebase.";
+  }
+  btn.disabled = false;
+};
+
+let current = null;
+const lb = document.getElementById("lb");
+document.getElementById("lbClose").onclick = () => lb.classList.remove("on");
+document.getElementById("lbDel").onclick = async () => {
+  if (!current || !confirm("Delete this picture?")) return;
+  try { await deleteObject(sref(store, current.path)); } catch (e) {}
+  await deleteDoc(doc(db, "photos", current.id));
+  lb.classList.remove("on");
+  toast("Deleted");
+};
+
+const q = query(collection(db, "photos"), orderBy("createdAt", "desc"));
+onSnapshot(q, snap => {
+  const g = document.getElementById("grid");
+  if (snap.empty) {
+    g.innerHTML = `<p class="empty" style="grid-column:1/-1">No pictures yet.
+      The first scan is a good place to start.</p>`;
+    return;
+  }
+  g.innerHTML = snap.docs.map(d => {
+    const x = d.data();
+    const cap = x.caption || (x.kind === "scan" ? "Scan" : x.kind === "bump" ? "Bump" : "");
+    return `<figure class="shot" data-id="${d.id}" style="margin:0">
+      <img src="${esc(x.url)}" alt="${esc(cap)}" loading="lazy">
+      <figcaption class="cap">${esc(cap)}${x.week ? " &middot; week " + x.week : ""}</figcaption>
+    </figure>`;
+  }).join("");
+
+  g.querySelectorAll(".shot").forEach(fig => {
+    fig.onclick = () => {
+      const d = snap.docs.find(x => x.id === fig.dataset.id);
+      current = { id: d.id, path: d.data().path };
+      document.getElementById("lbImg").src = d.data().url;
+      lb.classList.add("on");
+    };
+  });
+});
+</script>
+</body>
+</html>
