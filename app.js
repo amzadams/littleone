@@ -272,6 +272,10 @@ export function side() {
 export function myName() {
   return side() === "her" ? SETUP.herName : SETUP.hisName;
 }
+
+/* Only the husband's account can delete. She can add and edit.
+   This hides the buttons. The Firestore rules do the real enforcing. */
+export function isAdmin() { return side() === "him"; }
 export function setSide(s) { localStorage.setItem("littleone.as", s); }
 export const isDemo = !LIVE;
 

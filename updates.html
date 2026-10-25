@@ -45,7 +45,7 @@
 <script type="module">
 import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc, doc,
          deleteDoc, query, orderBy, limit, onSnapshot, serverTimestamp,
-         timeAgo, esc, toast, myName, side, watchUpdatesForNotices } from "./app.js";
+         timeAgo, esc, toast, myName, side, isAdmin, updateDoc, doc as fdoc } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -89,14 +89,41 @@ onSnapshot(q, snap => {
     return `<article class="card ${u.side === "him" ? "from-him" : ""}">
       <div class="meta">${esc(u.author)} &middot; ${timeAgo(u.createdAt)}${tag}</div>
       <div class="body ${u.kind === "note" ? "note" : ""}">${esc(u.text)}</div>
-      ${u.side === side() ? `<button class="del" data-id="${d.id}">Delete</button>` : ""}
+      <div style="display:flex;gap:.8rem">
+        ${u.side === side() ? `<button class="del" data-ed="${d.id}">Edit</button>` : ""}
+        ${isAdmin() ? `<button class="del" data-id="${d.id}">Delete</button>` : ""}
+      </div>
     </article>`;
   }).join("");
 
-  f.querySelectorAll(".del").forEach(b => {
+  f.querySelectorAll("[data-id]").forEach(b => {
     b.onclick = async () => {
+      if (!confirm("Delete this post?")) return;
       await deleteDoc(doc(db, "updates", b.dataset.id));
       toast("Deleted");
+    };
+  });
+
+  f.querySelectorAll("[data-ed]").forEach(b => {
+    b.onclick = () => {
+      const card = b.closest(".card");
+      const body = card.querySelector(".body");
+      if (card.querySelector("textarea")) return;
+      const was = body.textContent;
+      const ta = document.createElement("textarea");
+      ta.value = was;
+      const bar = document.createElement("div");
+      bar.style.cssText = "display:flex;gap:.4rem;margin-top:.5rem";
+      bar.innerHTML = `<button class="btn" style="padding:.4rem .8rem;font-size:.82rem">Save</button>
+        <button class="btn ghost" style="padding:.4rem .8rem;font-size:.82rem">Cancel</button>`;
+      body.replaceWith(ta);
+      ta.after(bar);
+      ta.focus();
+      bar.children[1].onclick = () => location.reload();
+      bar.children[0].onclick = async () => {
+        await updateDoc(fdoc(db, "updates", b.dataset.ed), { text: ta.value.trim(), edited: true });
+        toast("Updated");
+      };
     };
   });
 });

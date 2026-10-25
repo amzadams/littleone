@@ -61,14 +61,14 @@
 <div class="lightbox" id="lb">
   <button class="close" id="lbClose" aria-label="Close">&times;</button>
   <img id="lbImg" alt="">
-  <button class="rm" id="lbDel">Delete this picture</button>
+  <button class="rm" id="lbDel" hidden>Delete this picture</button>
 </div>
 
 <script type="module">
 import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc,
          doc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp,
          putFile, removeFile, getProfile, progress,
-         toast, esc, myName } from "./app.js";
+         toast, esc, myName, isAdmin } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -113,6 +113,7 @@ document.getElementById("up").onclick = async () => {
 let current = null;
 const lb = document.getElementById("lb");
 document.getElementById("lbClose").onclick = () => lb.classList.remove("on");
+document.getElementById("lbDel").hidden = !isAdmin();
 document.getElementById("lbDel").onclick = async () => {
   if (!current || !confirm("Delete this picture?")) return;
   await removeFile(current.path);

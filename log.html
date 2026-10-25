@@ -44,10 +44,16 @@
     border: 1px solid var(--line);
   }
   .tl-file a { font-size: .84rem; color: var(--sage); }
-  .tl-x {
+  .tl-acts { display: flex; flex-direction: column; align-items: flex-end; gap: .25rem; }
+  .tl-acts button {
     border: none; background: none; color: var(--ink-faint);
-    font-size: 1.1rem; line-height: 1; cursor: pointer; padding: .1rem .2rem;
+    cursor: pointer; padding: .1rem .2rem; line-height: 1;
   }
+  .tl-e { font-size: .74rem; text-decoration: underline; }
+  .tl-x { font-size: 1.1rem; }
+  .tl-edit textarea { margin-top: .2rem; }
+  .tl-edit .ebtns { display: flex; gap: .4rem; margin-top: .45rem; }
+  .tl-edit .ebtns .btn { padding: .4rem .8rem; font-size: .82rem; }
 
   /* two week strip */
   .days { display: flex; gap: .4rem; overflow-x: auto; padding: .2rem .1rem .9rem; scrollbar-width: none; }
@@ -161,7 +167,7 @@
 import { requireAuth, drawNav, drawTop, SETUP, db, store, doc, getDoc, setDoc,
          collection, addDoc, deleteDoc, query, orderBy, limit, onSnapshot,
          serverTimestamp, putFile, removeFile, CLOUD_FILES,
-         dayKey, prettyDate, toast, esc, myName, side, isDemo } from "./app.js";
+         dayKey, prettyDate, toast, esc, myName, side, isAdmin, updateDoc } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -270,6 +276,7 @@ document.getElementById("add").onclick = async () => {
 
 let ALL = [];
 let picked = todayKey;
+const ADMIN = isAdmin();
 
 function clock(hm) { return hm || ""; }
 
@@ -283,15 +290,19 @@ function rowHTML(id, e) {
       : `<div class="tl-file"><a href="${esc(e.fileUrl)}" target="_blank" rel="noopener">
            ${esc(e.fileName || "Open file")}</a></div>`;
   }
-  return `<div class="tl-row">
+  return `<div class="tl-row" data-row="${id}">
     <div class="tl-time">${esc(clock(e.hm))}</div>
     <div class="tl-body">
-      <div class="tl-kind ${t[2]}">${esc(t[1])}${e.by ? " &middot; " + esc(e.by) : ""}</div>
-      ${e.text ? `<div class="tl-text">${esc(e.text)}</div>` : ""}
+      <div class="tl-kind ${t[2]}">${esc(t[1])}${e.by ? " &middot; " + esc(e.by) : ""}${
+        e.edited ? " &middot; edited" : ""}</div>
+      <div class="tl-text">${esc(e.text || "")}</div>
       ${file}
     </div>
-    <button class="tl-x" data-rm="${id}" data-path="${esc(e.filePath || "")}"
-            aria-label="Delete entry">&times;</button>
+    <div class="tl-acts">
+      <button class="tl-e" data-ed="${id}">edit</button>
+      ${ADMIN ? `<button class="tl-x" data-rm="${id}" data-path="${esc(e.filePath || "")}"
+            aria-label="Delete entry">&times;</button>` : ""}
+    </div>
   </div>`;
 }
 
@@ -362,13 +373,40 @@ document.getElementById("days").addEventListener("click", e => {
   paintDayView();
 });
 
-/* deletion, works from either list */
+/* delete, husband only */
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-rm]"); if (!b) return;
   if (!confirm("Delete this entry?")) return;
   await removeFile(b.dataset.path);
   await deleteDoc(doc(db, "entries", b.dataset.rm));
   toast("Deleted");
+});
+
+/* edit the wording of an entry, either of you */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ed]"); if (!b) return;
+  const row = b.closest(".tl-row");
+  const holder = row.querySelector(".tl-text");
+  if (row.querySelector(".tl-edit")) return;
+
+  const was = ALL.find(x => x.id === b.dataset.ed)?.e.text || "";
+  const box = document.createElement("div");
+  box.className = "tl-edit";
+  box.innerHTML = `<textarea></textarea>
+    <div class="ebtns">
+      <button class="btn save">Save</button>
+      <button class="btn ghost cancel">Cancel</button>
+    </div>`;
+  box.querySelector("textarea").value = was;
+  holder.replaceWith(box);
+  box.querySelector("textarea").focus();
+
+  box.querySelector(".cancel").onclick = () => paintTimeline() || paintDayView();
+  box.querySelector(".save").onclick = async () => {
+    const text = box.querySelector("textarea").value.trim();
+    await updateDoc(doc(db, "entries", b.dataset.ed), { text, edited: true });
+    toast("Updated");
+  };
 });
 
 onSnapshot(query(collection(db, "entries"), orderBy("at", "desc"), limit(500)), s => {

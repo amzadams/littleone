@@ -52,7 +52,7 @@
 <script type="module">
 import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc, doc,
          updateDoc, deleteDoc, query, orderBy, onSnapshot, prettyDate, dayKey,
-         toast, esc, myName } from "./app.js";
+         toast, esc, myName, isAdmin } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -118,7 +118,7 @@ onSnapshot(q, snap => {
         qs.length
           ? qs.map((qq, i) => `<div class="qrow">
               <span style="flex:1;font-size:.93rem">${esc(qq)}</span>
-              <button class="x" data-del="${i}" aria-label="Remove">&times;</button>
+                      ${isAdmin() ? `<button class="x" data-del="${i}" aria-label="Remove">&times;</button>` : ""}
              </div>`).join("")
           : `<p class="faint" style="margin:.2rem 0 .5rem">Nothing yet. Add them as they come up.</p>`
       }</div>
@@ -131,7 +131,7 @@ onSnapshot(q, snap => {
       <textarea class="nts" placeholder="Notes from the visit">${esc(a.notes || "")}</textarea>
       <div class="two" style="margin-top:.6rem">
         <button class="btn ghost nsave">Save notes</button>
-        <button class="btn ghost rm" style="color:var(--rose)">Delete visit</button>
+        ${isAdmin() ? `<button class="btn ghost rm" style="color:var(--rose)">Delete visit</button>` : ""}
       </div>
     </section>`;
   }).join("");
@@ -163,7 +163,8 @@ onSnapshot(q, snap => {
         { notes: p.querySelector(".nts").value });
       toast("Notes saved");
     };
-    p.querySelector(".rm").onclick = async () => {
+    const rm = p.querySelector(".rm");
+    if (rm) rm.onclick = async () => {
       if (!confirm("Delete this visit?")) return;
       await deleteDoc(doc(db, "appointments", id));
       toast("Deleted");
