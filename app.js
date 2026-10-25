@@ -12,6 +12,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+         setPersistence, browserLocalPersistence, browserSessionPersistence,
          signOut as fbSignOut }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc as fbDoc, getDoc as fbGetDoc, setDoc as fbSetDoc,
@@ -29,6 +30,8 @@ import { getStorage, ref as fbSref, uploadBytes as fbUploadBytes,
 export const SETUP = {
   demo: false,                 // false means it now uses Firebase for real
   useCloudStorage: false,      // stays off the Blaze plan, pictures only
+  stayLoggedIn: true,          // keeps the sign in across browser restarts
+  lockAfterHours: 6,           // signs out after this many hours untouched. 0 turns it off
 
   dueDate: "2027-04-17",       // change this in Settings after the scan
   herName: "Halima",
@@ -237,13 +240,73 @@ export async function removeFile(path) {
 
 export let ME = null;
 
+/* How long a sign in lasts.
+   stayLoggedIn true  -> kept in the browser, survives restarts, never expires
+   stayLoggedIn false -> cleared the moment the browser closes            */
+const persistReady = LIVE
+  ? setPersistence(auth, SETUP.stayLoggedIn === false
+      ? browserSessionPersistence : browserLocalPersistence).catch(() => {})
+  : Promise.resolve();
+
+/* ---------- idle lock ----------------------------------------
+   The sign in survives restarts, but goes stale after a stretch
+   of not touching it. Set lockAfterHours to 0 to switch off.
+   ------------------------------------------------------------ */
+
+export const LOCK_MS = (SETUP.lockAfterHours || 0) * 3600000;
+const ACT_KEY = "littleone.lastTouch";
+
+function touch() { try { localStorage.setItem(ACT_KEY, String(Date.now())); } catch (e) {} }
+
+function idleMs() {
+  const v = Number(localStorage.getItem(ACT_KEY) || 0);
+  return v ? Date.now() - v : 0;
+}
+
+async function lockOut() {
+  try { localStorage.removeItem(ACT_KEY); } catch (e) {}
+  if (LIVE) { try { await fbSignOut(auth); } catch (e) {} }
+  location.replace("login.html?reason=idle");
+}
+
+function watchIdle() {
+  if (!LOCK_MS) return;
+  const check = () => { if (idleMs() > LOCK_MS) lockOut(); };
+  ["pointerdown", "keydown", "touchstart", "wheel"].forEach(ev =>
+    window.addEventListener(ev, touch, { passive: true }));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+  setInterval(check, 60000);
+}
+
+/* ---------- last seen -----------------------------------------
+   One row per person, rewritten at most every five minutes, so
+   each of you can see when the other last opened it.
+   ------------------------------------------------------------ */
+
+const PING_KEY = "littleone.lastPing";
+
+async function ping() {
+  if (!LIVE) return;
+  const last = Number(localStorage.getItem(PING_KEY) || 0);
+  if (Date.now() - last < 5 * 60000) return;
+  try {
+    localStorage.setItem(PING_KEY, String(Date.now()));
+    await setDoc(doc(db, "presence", side()), {
+      name: myName(),
+      page: (location.pathname.split("/").pop() || "index.html").replace(".html", ""),
+      lastSeen: Date.now()
+    }, { merge: true });
+  } catch (e) {}
+}
+
 /* Hold the page until signed in. Returns the user. */
-export function requireAuth() {
+export async function requireAuth() {
   if (!LIVE) {
     ME = { email: SETUP.herEmail, demo: true };
     document.body.dataset.ready = "1";
-    return Promise.resolve(ME);
+    return ME;
   }
+  await persistReady;
   return new Promise(resolve => {
     onAuthStateChanged(auth, user => {
       if (!user) {
@@ -254,14 +317,29 @@ export function requireAuth() {
         return;
       }
       ME = user;
+      if (LOCK_MS && idleMs() > LOCK_MS) { lockOut(); return; }
+      touch();
+      watchIdle();
+      ping();
       document.body.dataset.ready = "1";
       resolve(user);
     });
   });
 }
 
-export function signIn(email, password) {
-  return signInWithEmailAndPassword(auth, email, password);
+export async function signIn(email, password) {
+  await persistReady;
+  const res = await signInWithEmailAndPassword(auth, email, password);
+  touch();
+  try { localStorage.removeItem(PING_KEY); } catch (e) {}
+  return res;
+}
+
+/* Sign out and go straight back to the sign in screen. */
+export async function leave(reason) {
+  try { localStorage.removeItem(ACT_KEY); } catch (e) {}
+  if (LIVE) { try { await fbSignOut(auth); } catch (e) {} }
+  location.replace("login.html" + (reason ? "?reason=" + reason : ""));
 }
 
 /* Who is writing: "her" or "him". Only decides the card colour. */

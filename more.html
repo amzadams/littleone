@@ -54,12 +54,24 @@
     <a class="btn wide" id="call">Call the clinic</a>
   </section>
 
-  <button class="btn ghost wide" id="out" style="margin-top:1rem">Sign out</button>
+  <section class="panel" style="margin-top:1rem">
+    <h2>Who is here</h2>
+    <div class="rows" id="seen"></div>
+    <p class="faint" id="lockNote" style="margin:.8rem 0 0"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Account</h2>
+    <p class="muted" id="whoami" style="margin-bottom:.9rem"></p>
+    <button class="btn ghost wide" id="switch">Switch to the other account</button>
+    <button class="btn ghost wide" id="out" style="margin-top:.5rem">Sign out</button>
+  </section>
 </main>
 
 <script type="module">
-import { requireAuth, drawNav, drawTop, SETUP, auth, signOut, esc,
-         db, collection, query, orderBy, onSnapshot, dayKey, prettyDate } from "./app.js";
+import { requireAuth, drawNav, drawTop, SETUP, esc, myName, isAdmin, leave,
+         timeAgo, LOCK_MS, db, collection, query, orderBy, onSnapshot,
+         dayKey, prettyDate } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -76,10 +88,29 @@ onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
     next ? "Next: " + prettyDate(next.date) : "Dates, questions, what the doctor said";
 });
 
-document.getElementById("out").onclick = async () => {
-  await signOut(auth);
-  location.replace("login.html");
-};
+document.getElementById("whoami").textContent =
+  "Signed in as " + myName() + (isAdmin() ? ", full access" : ", can add and edit");
+
+document.getElementById("lockNote").textContent = LOCK_MS
+  ? "Signs you out after " + (LOCK_MS / 3600000) + " hours without touching it."
+  : "Stays signed in until you sign out.";
+
+document.getElementById("out").onclick    = () => leave();
+document.getElementById("switch").onclick = () => leave();
+
+onSnapshot(query(collection(db, "presence"), orderBy("lastSeen", "desc")), s => {
+  const box = document.getElementById("seen");
+  if (s.empty) { box.innerHTML = `<p class="empty" style="padding:.6rem 0">No visits recorded yet.</p>`; return; }
+  box.innerHTML = s.docs.map(d => {
+    const p = d.data();
+    return `<div class="row">
+      <div class="row-main">
+        <div class="t">${esc(p.name || d.id)}</div>
+        <div class="s">last opened ${timeAgo(p.lastSeen)}${p.page ? ", on " + esc(p.page) : ""}</div>
+      </div>
+    </div>`;
+  }).join("");
+});
 </script>
 </body>
 </html>

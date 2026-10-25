@@ -18,7 +18,7 @@
 <body>
 <div class="box">
   <p class="brand">Little One</p>
-  <p class="faint" style="margin-bottom:1.6rem">Private. Just the two of you.</p>
+  <p class="faint" id="why" style="margin-bottom:1.6rem">Private. Just the two of you.</p>
 
   <label class="fl" for="em">Email</label>
   <input type="email" id="em" autocomplete="username">
@@ -32,7 +32,12 @@
 import { auth, signIn, isDemo } from "./app.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const next = new URLSearchParams(location.search).get("next") || "index.html";
+const params = new URLSearchParams(location.search);
+const next = params.get("next") || "index.html";
+if (params.get("reason") === "idle") {
+  document.getElementById("why").textContent =
+    "Signed out after a stretch of not being opened. Sign in again.";
+}
 
 if (isDemo) location.replace(next);
 else onAuthStateChanged(auth, u => { if (u) location.replace(next); });
