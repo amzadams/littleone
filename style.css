@@ -35,7 +35,11 @@ body {
   line-height: 1.55;
   padding-bottom: 84px;
   padding-top: env(safe-area-inset-top, 0px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
+body > main { flex: 1 0 auto; }
 
 h1, h2, h3 {
   font-family: var(--serif);
@@ -369,15 +373,28 @@ label.fl { display: block; font-size: .8rem; color: var(--ink-soft); margin: .7r
 
 @media (min-width: 720px) {
   body { padding-bottom: 2rem; }
+  .topbar { order: 1; }
+  .tabs   { order: 2; }
+  body > main { order: 3; }
   .tabs {
     position: static;
+    width: 100%;
     max-width: var(--wrap);
-    margin: 0 auto 1.2rem;
+    margin: 0 auto 1.4rem;
+    padding: 0 1.1rem;
     border: 0;
     border-bottom: 1px solid var(--line);
     background: transparent;
+    gap: 1.6rem;
   }
-  .tabs a { font-size: .8rem; padding: .4rem 0 .7rem; }
+  .tabs a {
+    flex: 0 0 auto;
+    font-size: .92rem;
+    padding: .2rem 0 .7rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tabs a.on { border-bottom-color: var(--gold); }
   .tabs a svg { display: none; }
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
