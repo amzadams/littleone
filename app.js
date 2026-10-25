@@ -27,24 +27,26 @@ import { getStorage, ref as fbSref, uploadBytes as fbUploadBytes,
 /* ============ 1. YOUR CONFIG ============================== */
 
 export const SETUP = {
-  demo: true,                  // <-- true means no Firebase needed
-  useCloudStorage: false,      // false keeps you off the Blaze plan, images only
+  demo: false,                 // false means it now uses Firebase for real
+  useCloudStorage: false,      // stays off the Blaze plan, pictures only
 
-  dueDate: "2027-04-17",       // the clinic's date wins, change it after the scan
+  dueDate: "2027-04-17",       // change this in Settings after the scan
   herName: "Halima",
-  hisName: "Amz",
-  herEmail: "her@example.com", // the account she signs in with
+  hisName: "Abdul-Manan",
+
+  herEmail: "halima@littleone.app",   // the account she signs in with
+
   clinicName: "Altru Clinic",
   clinicPhone: "+17017805000"
 };
 
 const firebaseConfig = {
-  apiKey: "PASTE_YOURS",
-  authDomain: "PASTE_YOURS.firebaseapp.com",
-  projectId: "PASTE_YOURS",
-  storageBucket: "PASTE_YOURS.appspot.com",
-  messagingSenderId: "PASTE_YOURS",
-  appId: "PASTE_YOURS"
+  apiKey: "AIzaSyApI5hgrVc_RahDZl6JVJu4Z3PT0u9uIYU",
+  authDomain: "littleone-f1235.firebaseapp.com",
+  projectId: "littleone-f1235",
+  storageBucket: "littleone-f1235.firebasestorage.app",
+  messagingSenderId: "403633062310",
+  appId: "1:403633062310:web:3016e4fa4df7d74b900f67"
 };
 
 /* ============ 2. plumbing, leave alone ==================== */
