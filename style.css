@@ -24,7 +24,7 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 
 body {
   margin: 0;
@@ -39,7 +39,9 @@ body {
   flex-direction: column;
   min-height: 100vh;
 }
-body > main { flex: 1 0 auto; }
+/* min-width 0 is what stops a wide child, such as a scrolling
+   strip, from forcing the whole page wider than the screen */
+body > main { flex: 1 0 auto; min-width: 0; width: 100%; }
 
 h1, h2, h3 {
   font-family: var(--serif);
@@ -56,10 +58,15 @@ p { margin: 0 0 .9rem; }
 a { color: var(--ink); }
 
 .wrap {
+  width: 100%;
+  min-width: 0;
   max-width: var(--wrap);
   margin: 0 auto;
   padding: 0 1.1rem;
 }
+
+/* any horizontally scrolling strip stays inside its parent */
+.days, .weekstrip, .types, .panel, .rows, .grid { min-width: 0; max-width: 100%; }
 
 /* ---- top bar ---- */
 .topbar {
