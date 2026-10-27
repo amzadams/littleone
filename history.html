@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Everything</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .chips { display: flex; flex-wrap: wrap; gap: .32rem; margin: .7rem 0 .2rem; }
+  .chips button {
+    border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+    border-radius: 999px; padding: .3rem .72rem;
+    font-family: var(--sans); font-size: .78rem; cursor: pointer;
+  }
+  .chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+
+  .daygroup { margin-top: 1.4rem; }
+  .dayhead {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: .6rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .dayhead h2 { margin: 0; font-size: 1.12rem; }
+  .dayhead .wk { font-size: .75rem; color: var(--ink-faint); }
+  .daysum { font-size: .82rem; color: var(--sage); padding: .5rem 0 0; }
+
+  .tl-row {
+    display: grid; grid-template-columns: 52px 1fr auto;
+    gap: .7rem; align-items: start;
+    padding: .78rem 0; border-bottom: 1px solid var(--line);
+  }
+  .tl-time { font-size: .78rem; color: var(--ink-faint);
+             font-variant-numeric: tabular-nums; padding-top: .1rem; }
+  .tl-body { min-width: 0; }
+  .tl-kind { font-size: .72rem; color: var(--sage); margin-bottom: .1rem; }
+  .tl-kind.eat { color: var(--gold); }
+  .tl-kind.sym { color: var(--rose); }
+  .tl-text { font-size: .96rem; white-space: pre-wrap; word-break: break-word; }
+  .tl-file { margin-top: .45rem; }
+  .tl-file img { max-width: 150px; border-radius: var(--r-md); display: block;
+                 border: 1px solid var(--line); }
+  .tl-file a { font-size: .84rem; color: var(--sage); }
+  .tl-acts { display: flex; flex-direction: column; align-items: flex-end; gap: .25rem; }
+  .tl-acts button { border: none; background: none; color: var(--ink-faint);
+                    cursor: pointer; padding: .1rem .2rem; line-height: 1; }
+  .tl-e { font-size: .74rem; text-decoration: underline; }
+  .tl-x { font-size: 1.1rem; }
+  .tl-edit .ebtns { display: flex; gap: .4rem; margin-top: .45rem; }
+  .tl-edit .ebtns .btn { padding: .4rem .8rem; font-size: .82rem; }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Everything</h1>
+  <p class="faint" id="sub" style="margin-top:-.3rem">Loading</p>
+
+  <input type="search" id="q" placeholder="Search everything she has logged" autocomplete="off">
+
+  <div class="chips" id="kinds"></div>
+  <div class="chips" id="range"></div>
+
+  <div id="list"></div>
+
+  <div style="text-align:center;margin:1.4rem 0 1.5rem">
+    <button class="btn ghost" id="more" hidden>Show older</button>
+  </div>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, getDoc, deleteDoc,
+         updateDoc, collection, query, orderBy, onSnapshot, removeFile,
+         prettyDate, dayKey, toast, esc, isAdmin, getProfile, progress } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const ADMIN = isAdmin();
+const prof = await getProfile();
+const dueDate = prof.dueDate || SETUP.dueDate;
+const todayKey = dayKey();
+
+const TYPES = [
+  ["meal", "Meal", "eat"], ["fruit", "Fruit", "eat"], ["drink", "Drink", "eat"],
+  ["snack", "Snack", "eat"], ["move", "Exercise", ""], ["symp", "Symptom", "sym"],
+  ["med", "Medicine", ""], ["sleep", "Sleep", ""], ["note", "Note", ""],
+  ["scan", "Scan or document", ""]
+];
+const TMAP = Object.fromEntries(TYPES.map(t => [t[0], t]));
+
+let ALL = [], term = "", kind = "all", range = "all", shown = 60;
+
+document.getElementById("kinds").innerHTML =
+  `<button data-k="all" aria-pressed="true">Everything</button>` +
+  TYPES.map(([k, l]) => `<button data-k="${k}" aria-pressed="false">${l}</button>`).join("");
+
+document.getElementById("range").innerHTML = [
+  ["all", "All time"], ["30", "Last 30 days"], ["7", "Last week"], ["pics", "With a picture"]
+].map(([r, l], i) =>
+  `<button data-r="${r}" aria-pressed="${i === 0}">${l}</button>`).join("");
+
+function wire(id, attr, set) {
+  document.getElementById(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    set(b.dataset[attr]);
+    shown = 60;
+    document.querySelectorAll(`#${id} button`).forEach(x =>
+      x.setAttribute("aria-pressed", String(x === b)));
+    paint();
+  });
+}
+wire("kinds", "k", v => kind = v);
+wire("range", "r", v => range = v);
+
+document.getElementById("q").addEventListener("input", e => {
+  term = e.target.value.trim().toLowerCase(); shown = 60; paint();
+});
+
+document.getElementById("more").onclick = () => { shown += 60; paint(); };
+
+/* week number a given day fell in */
+function weekOf(day) {
+  const due = new Date(dueDate + "T00:00:00");
+  const d = new Date(day + "T00:00:00");
+  const total = 280 - Math.round((due - d) / 86400000);
+  return Math.floor(total / 7);
+}
+
+function rowHTML(id, e) {
+  const t = TMAP[e.kind] || ["", e.kind, ""];
+  let file = "";
+  if (e.fileUrl) {
+    file = e.isImage
+      ? `<div class="tl-file"><a href="${esc(e.fileUrl)}" target="_blank" rel="noopener">
+           <img src="${esc(e.fileUrl)}" alt="" loading="lazy"></a></div>`
+      : `<div class="tl-file"><a href="${esc(e.fileUrl)}" target="_blank" rel="noopener">
+           ${esc(e.fileName || "Open file")}</a></div>`;
+  }
+  return `<div class="tl-row" data-row="${id}">
+    <div class="tl-time">${esc(e.hm || "")}</div>
+    <div class="tl-body">
+      <div class="tl-kind ${t[2]}">${esc(t[1])}${e.by ? " &middot; " + esc(e.by) : ""}${
+        e.edited ? " &middot; edited" : ""}</div>
+      <div class="tl-text">${esc(e.text || "")}</div>
+      ${file}
+    </div>
+    <div class="tl-acts">
+      <button class="tl-e" data-ed="${id}">edit</button>
+      ${ADMIN ? `<button class="tl-x" data-rm="${id}" data-path="${esc(e.filePath || "")}"
+          aria-label="Delete">&times;</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function matches(e) {
+  if (kind !== "all" && e.kind !== kind) return false;
+  if (range === "pics" && !e.fileUrl) return false;
+  if (range === "7" || range === "30") {
+    const days = Math.round((new Date(todayKey + "T00:00:00") -
+                             new Date(e.day + "T00:00:00")) / 86400000);
+    if (days > Number(range)) return false;
+  }
+  if (term) {
+    const hay = (e.text || "") + " " + (TMAP[e.kind]?.[1] || "") + " " + (e.by || "");
+    if (!hay.toLowerCase().includes(term)) return false;
+  }
+  return true;
+}
+
+const dayLogs = {};
+
+async function paint() {
+  const hits = ALL.filter(x => matches(x.e));
+  document.getElementById("sub").textContent =
+    hits.length === ALL.length
+      ? ALL.length + (ALL.length === 1 ? " entry in total" : " entries in total")
+      : hits.length + " of " + ALL.length + " shown";
+
+  const slice = hits.slice(0, shown);
+  document.getElementById("more").hidden = hits.length <= shown;
+
+  const days = [...new Set(slice.map(x => x.e.day))];
+  const list = document.getElementById("list");
+
+  if (!slice.length) {
+    list.innerHTML = `<p class="empty">Nothing matches that.</p>`;
+    return;
+  }
+
+  list.innerHTML = days.map(day => {
+    const rows = slice.filter(x => x.e.day === day);
+    const lg = dayLogs[day];
+    const bits = [];
+    if (lg) {
+      if (lg.nausea != null) bits.push("nausea " + lg.nausea + " of 5");
+      if (lg.water) bits.push(lg.water + " glasses");
+      if (lg.prenatal) bits.push("prenatal");
+      if (lg.b6) bits.push("B6");
+    }
+    return `<section class="daygroup">
+      <div class="dayhead">
+        <h2>${day === todayKey ? "Today" : prettyDate(day)}</h2>
+        <span class="wk">week ${weekOf(day)} &middot; ${rows.length}</span>
+      </div>
+      ${bits.length ? `<div class="daysum">${esc(bits.join(", "))}</div>` : ""}
+      <div class="tl">${rows.map(x => rowHTML(x.id, x.e)).join("")}</div>
+    </section>`;
+  }).join("");
+
+  /* pull the daily trackers for any day on screen we have not fetched */
+  for (const day of days) {
+    if (day in dayLogs) continue;
+    dayLogs[day] = null;
+    getDoc(doc(db, "logs", day)).then(sn => {
+      dayLogs[day] = sn.exists() ? sn.data() : null;
+      if (sn.exists()) paint();
+    }).catch(() => {});
+  }
+}
+
+/* ---- edit and delete ---- */
+
+document.addEventListener("click", async e => {
+  const d = e.target.closest("[data-rm]");
+  if (d) {
+    if (!confirm("Delete this entry?")) return;
+    await removeFile(d.dataset.path);
+    await deleteDoc(doc(db, "entries", d.dataset.rm));
+    toast("Deleted");
+    return;
+  }
+
+  const b = e.target.closest("[data-ed]");
+  if (!b) return;
+  const row = b.closest(".tl-row");
+  if (row.querySelector(".tl-edit")) return;
+  const rec = ALL.find(x => x.id === b.dataset.ed)?.e || {};
+
+  const box = document.createElement("div");
+  box.className = "tl-edit";
+  box.innerHTML = `<textarea></textarea>
+    <div style="display:flex;gap:.4rem;margin-top:.4rem">
+      <input type="date" class="ed" style="flex:1.3">
+      <input type="time" class="et" style="flex:1">
+    </div>
+    <div class="ebtns">
+      <button class="btn save">Save</button>
+      <button class="btn ghost cancel">Cancel</button>
+    </div>`;
+  box.querySelector("textarea").value = rec.text || "";
+  box.querySelector(".ed").value = rec.day || todayKey;
+  box.querySelector(".ed").max = todayKey;
+  box.querySelector(".et").value = rec.hm || "12:00";
+  row.querySelector(".tl-text").replaceWith(box);
+  box.querySelector("textarea").focus();
+
+  box.querySelector(".cancel").onclick = () => paint();
+  box.querySelector(".save").onclick = async () => {
+    const day = box.querySelector(".ed").value || rec.day;
+    const hm = box.querySelector(".et").value || rec.hm || "12:00";
+    const at = new Date(day + "T00:00:00");
+    at.setHours(Number(hm.slice(0, 2)), Number(hm.slice(3, 5)), 0, 0);
+    await updateDoc(doc(db, "entries", b.dataset.ed),
+      { text: box.querySelector("textarea").value.trim(),
+        day, hm, at: at.getTime(), edited: true });
+    toast("Updated");
+  };
+});
+
+onSnapshot(query(collection(db, "entries"), orderBy("at", "desc")), s => {
+  ALL = s.docs.map(d => ({ id: d.id, e: d.data() }));
+  paint();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Local</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .myth {
+    background: var(--rose-soft); border: 1px solid #E6C5C9;
+    border-radius: var(--r-md); padding: .9rem 1rem; margin-bottom: 1.1rem;
+    color: #7E333C; font-size: .92rem;
+  }
+  .contact { font-size: .92rem; color: var(--ink-soft); }
+  .contact a { color: var(--sage); }
+  dl { margin: 0; }
+  dt { font-size: .78rem; color: var(--ink-faint); margin-top: .7rem; }
+  dd { margin: .1rem 0 0; font-size: .95rem; }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Local</h1>
+  <p class="faint" style="margin-top:-.3rem">Grand Forks specifics, kept in one place.</p>
+
+  <section class="panel">
+    <h2>The car seat</h2>
+
+    <div class="myth">
+      The fire station thing is a myth. Being a firefighter, nurse, doctor or police
+      officer does not come with any car seat training. The only people qualified are
+      certified Child Passenger Safety Technicians.
+    </div>
+
+    <p class="muted">
+      Worth doing properly. Safe Kids Grand Forks says four out of five car seats are
+      used incorrectly, and it is worst with the complicated infant seats for newborns.
+    </p>
+
+    <h3 style="margin-top:1.1rem">Safe Kids Grand Forks</h3>
+    <p class="contact">
+      Runs free monthly checkup events with Altru Health System, Rydell Auto Center and
+      the East Grand Forks Fire Department. Free and open to anyone. Altru is the same
+      system you are already seeing.<br>
+      <a href="https://safekidsgf.com/ChildPassengerSafety.html" target="_blank" rel="noopener">
+        safekidsgf.com, schedule and locations</a>
+    </p>
+
+    <h3 style="margin-top:1.1rem">Grand Forks Air Force Base station</h3>
+    <dl class="contact">
+      <dt>When</dt><dd>Mondays, 11am to 1pm</dd>
+      <dt>Appointment</dt><dd>Required</dd>
+      <dt>Contact</dt><dd>Paula, <a href="tel:+17017476806">(701) 747-6806</a></dd>
+    </dl>
+
+    <h3 style="margin-top:1.1rem">Find any technician</h3>
+    <p class="contact">
+      <a href="https://cert.safekids.org/" target="_blank" rel="noopener">cert.safekids.org</a>,
+      search by city. Or the ND Department of Health on
+      <a href="tel:+18004722286">800-472-2286</a>.
+    </p>
+
+    <hr class="hr">
+    <h3>Three things to get right</h3>
+    <div class="rows">
+      <div class="row"><div class="row-main">
+        <div class="t">Book it around week 36</div>
+        <div class="s">Before the baby comes, not after. The hospital will not discharge you without a seat fitted.</div>
+      </div></div>
+      <div class="row"><div class="row-main">
+        <div class="t">Buy new, never second hand</div>
+        <div class="s">You cannot see crash damage, and you will not know if it has been recalled.</div>
+      </div></div>
+      <div class="row"><div class="row-main">
+        <div class="t">Rear facing, for a long time</div>
+        <div class="s">Moving a child forward too early is one of the most common mistakes. North Dakota law requires a restraint until age 8.</div>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Clinic</h2>
+    <p class="contact" id="clinic"></p>
+    <a class="btn wide" id="call" style="margin-top:.6rem">Call the clinic</a>
+  </section>
+
+  <section class="panel">
+    <h2>Worth looking into</h2>
+    <div class="rows">
+      <div class="row"><div class="row-main">
+        <div class="t">Pregnancy Medicaid</div>
+        <div class="s">The unborn baby counts in the household size, which lifts the income limit. No asset test. Apply at HealthCare.gov or Grand Forks County Social Services.</div>
+      </div></div>
+      <div class="row"><div class="row-main">
+        <div class="t">WIC</div>
+        <div class="s">Food support during pregnancy and after. Separate from Medicaid, with a higher income limit, so worth applying even if Medicaid does not come through.</div>
+      </div></div>
+      <div class="row"><div class="row-main">
+        <div class="t">Breast pump through insurance</div>
+        <div class="s">Usually covered. Ask before buying one.</div>
+      </div></div>
+      <div class="row"><div class="row-main">
+        <div class="t">Hospital tour and birth classes</div>
+        <div class="s">Altru runs both. Ask at the next visit, they book up.</div>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, esc } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+document.getElementById("clinic").textContent = SETUP.clinicName + ", " + SETUP.clinicPhone;
+document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+</script>
+</body>
+</html>

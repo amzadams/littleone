@@ -11,20 +11,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="data.js"></script>
+<style>
+  .greet { text-align:center; padding:.4rem 0 .2rem; }
+  .greet .hi { font-size:.9rem; color:var(--ink-soft); }
+  .greet .nm { font-family:var(--serif); font-size:2.2rem; line-height:1.1; margin:0; }
+  .ring-art { position:absolute; inset:0; display:grid; place-items:center; }
+  .ring-art svg { width:68%; height:68%; }
+  .wk-line { font-family:var(--serif); font-size:1.6rem; margin:.9rem 0 .1rem; }
+  .size-cap { color:var(--ink-soft); font-size:.98rem; margin:0; }
+</style>
 </head>
 <body>
 
 <main class="wrap" id="main" hidden>
 
+  <section class="greet">
+    <p class="hi" id="hi"></p>
+    <p class="nm" id="nm"></p>
+  </section>
+
   <section class="ring-panel">
     <div class="ring-holder">
       <svg viewBox="0 0 236 236" aria-hidden="true" id="ring"></svg>
-      <div class="ring-mid">
-        <span class="wk-label">week</span>
-        <span class="wk-num" id="wkNum">--</span>
-        <span class="wk-days" id="wkDays"></span>
-      </div>
+      <div class="ring-art" id="ringArt"></div>
     </div>
+    <p class="wk-line" id="wkLine"></p>
+    <p class="size-cap" id="sizeCap"></p>
     <p class="countdown" id="countdown"></p>
   </section>
 
@@ -77,6 +89,7 @@
 import { requireAuth, drawNav, drawTop, getProfile, progress, prettyDate,
          SETUP, db, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
          dayKey, esc, timeAgo, watchUpdatesForNotices } from "./app.js";
+import { sizeArt } from "./illus.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -101,9 +114,13 @@ for (let i = 0; i < 40; i++) {
 }
 document.getElementById("ring").innerHTML = out;
 
-document.getElementById("wkNum").textContent = p.week;
-document.getElementById("wkDays").textContent =
-  p.day === 0 ? "and 0 days" : "and " + p.day + (p.day === 1 ? " day" : " days");
+const hour = new Date().getHours();
+document.getElementById("hi").textContent =
+  "Good " + (hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening") + ",";
+document.getElementById("nm").textContent = SETUP.herName;
+
+document.getElementById("wkLine").textContent =
+  "Week " + p.week + (p.day ? " and " + p.day + (p.day === 1 ? " day" : " days") : "");
 
 const weeksLeft = Math.floor(p.daysLeft / 7);
 document.getElementById("countdown").innerHTML =
@@ -112,6 +129,8 @@ document.getElementById("countdown").innerHTML =
 
 /* ---- this week's content ---- */
 const w = WEEKS[p.week] || WEEKS[40];
+document.getElementById("ringArt").innerHTML = sizeArt(w[0], 150);
+document.getElementById("sizeCap").textContent = "About the size of " + w[0] + ".";
 document.getElementById("sizeLine").textContent = "About the size of " + w[0] + ".";
 document.getElementById("babyText").textContent = w[1];
 document.getElementById("momText").textContent = w[2];

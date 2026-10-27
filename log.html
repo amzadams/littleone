@@ -85,8 +85,8 @@
   <section class="panel">
     <h2>Add something</h2>
     <p class="faint" style="margin:-.2rem 0 .7rem">
-      Food, a symptom, a walk, a thought. Anything, any time of day.
-      Pictures are shrunk automatically, so a photo of a report works fine.
+      Food, a symptom, a walk, a thought. Change the day to log something
+      from earlier in the week. Pictures are shrunk automatically.
     </p>
 
     <div class="types" id="types"></div>
@@ -94,15 +94,19 @@
     <textarea id="txt" placeholder="Banku with kontomire. Went down fine."></textarea>
 
     <div style="display:flex;gap:.5rem;margin-top:.6rem">
-      <div style="flex:0 0 7.5rem">
+      <div style="flex:1.3">
+        <label class="fl" for="dt" style="margin-top:0">Day</label>
+        <input type="date" id="dt">
+      </div>
+      <div style="flex:1">
         <label class="fl" for="tm" style="margin-top:0">Time</label>
         <input type="time" id="tm">
       </div>
-      <div style="flex:1">
-        <label class="fl" for="file" style="margin-top:0">Picture or file</label>
-        <input type="file" id="file" class="filepick" accept="image/*">
-      </div>
     </div>
+    <p class="faint" id="whenNote" style="margin:.4rem 0 0"></p>
+
+    <label class="fl" for="file">Picture, optional</label>
+    <input type="file" id="file" class="filepick" accept="image/*">
 
     <button class="btn wide" id="add" style="margin-top:.9rem">Add entry</button>
     <p class="faint" id="prog" style="margin:.5rem 0 0"></p>
@@ -219,12 +223,27 @@ document.getElementById("types").addEventListener("click", e => {
   document.getElementById("txt").placeholder = PLACEHOLDER[kind] || "";
 });
 
-/* default the time box to now */
+/* default the day and time to now, and never allow a future day */
+const dtBox = document.getElementById("dt");
+const tmBox = document.getElementById("tm");
+
 (function setNow() {
   const d = new Date();
-  document.getElementById("tm").value =
-    String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  tmBox.value = String(d.getHours()).padStart(2, "0") + ":" +
+                String(d.getMinutes()).padStart(2, "0");
+  dtBox.value = todayKey;
+  dtBox.max = todayKey;
 })();
+
+function sayWhen() {
+  const n = document.getElementById("whenNote");
+  if (!dtBox.value || dtBox.value === todayKey) { n.textContent = ""; return; }
+  const back = Math.round((new Date(todayKey + "T00:00:00") -
+                           new Date(dtBox.value + "T00:00:00")) / 86400000);
+  n.textContent = "This will be saved under " + prettyDate(dtBox.value) +
+    ", " + back + (back === 1 ? " day" : " days") + " ago.";
+}
+dtBox.addEventListener("change", sayWhen);
 
 /* ============ adding an entry ============ */
 
@@ -237,9 +256,10 @@ document.getElementById("add").onclick = async () => {
   const prog = document.getElementById("prog");
   btn.disabled = true;
 
-  /* build the exact moment from the time box */
-  const hm = document.getElementById("tm").value || "12:00";
-  const at = new Date();
+  /* build the exact moment from the day and time boxes */
+  const dayPick = dtBox.value || todayKey;
+  const hm = tmBox.value || "12:00";
+  const at = new Date(dayPick + "T00:00:00");
   at.setHours(Number(hm.slice(0, 2)), Number(hm.slice(3, 5)), 0, 0);
 
   let fileUrl = "", filePath = "", fileName = "", isImage = false;
@@ -253,7 +273,7 @@ document.getElementById("add").onclick = async () => {
     }
 
     await addDoc(collection(db, "entries"), {
-      day: todayKey,
+      day: dayPick,
       at: at.getTime(),
       hm,
       kind, text,
@@ -265,7 +285,8 @@ document.getElementById("add").onclick = async () => {
     document.getElementById("txt").value = "";
     document.getElementById("file").value = "";
     prog.textContent = "";
-    toast("Added");
+    toast(dayPick === todayKey ? "Added" : "Added to " + prettyDate(dayPick));
+    if (dayPick !== todayKey) { picked = dayPick; }
   } catch (err) {
     prog.textContent = "Could not save. " + (err.message || "");
   }
@@ -362,7 +383,18 @@ async function paintDayView() {
 
   v.innerHTML = head + summary + (rows.length
     ? `<div class="tl">${rows.map(x => rowHTML(x.id, x.e)).join("")}</div>`
-    : `<p class="faint" style="margin:0">No entries that day.</p>`);
+    : `<p class="faint" style="margin:0 0 .6rem">No entries that day.</p>`) +
+    (picked === todayKey ? "" :
+      `<button class="btn ghost" id="addHere" style="margin-top:.8rem">
+         Add something to this day</button>`);
+
+  const ah = document.getElementById("addHere");
+  if (ah) ah.onclick = () => {
+    dtBox.value = picked;
+    sayWhen();
+    document.getElementById("txt").focus();
+    document.getElementById("txt").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 }
 
 document.getElementById("days").addEventListener("click", e => {
@@ -389,22 +421,34 @@ document.addEventListener("click", e => {
   const holder = row.querySelector(".tl-text");
   if (row.querySelector(".tl-edit")) return;
 
-  const was = ALL.find(x => x.id === b.dataset.ed)?.e.text || "";
+  const rec = ALL.find(x => x.id === b.dataset.ed)?.e || {};
   const box = document.createElement("div");
   box.className = "tl-edit";
   box.innerHTML = `<textarea></textarea>
+    <div style="display:flex;gap:.4rem;margin-top:.4rem">
+      <input type="date" class="ed" style="flex:1.3">
+      <input type="time" class="et" style="flex:1">
+    </div>
     <div class="ebtns">
       <button class="btn save">Save</button>
       <button class="btn ghost cancel">Cancel</button>
     </div>`;
-  box.querySelector("textarea").value = was;
+  box.querySelector("textarea").value = rec.text || "";
+  box.querySelector(".ed").value = rec.day || todayKey;
+  box.querySelector(".ed").max = todayKey;
+  box.querySelector(".et").value = rec.hm || "12:00";
   holder.replaceWith(box);
   box.querySelector("textarea").focus();
 
-  box.querySelector(".cancel").onclick = () => paintTimeline() || paintDayView();
+  box.querySelector(".cancel").onclick = () => { paintTimeline(); paintDayView(); };
   box.querySelector(".save").onclick = async () => {
-    const text = box.querySelector("textarea").value.trim();
-    await updateDoc(doc(db, "entries", b.dataset.ed), { text, edited: true });
+    const day = box.querySelector(".ed").value || rec.day;
+    const hm = box.querySelector(".et").value || rec.hm || "12:00";
+    const at = new Date(day + "T00:00:00");
+    at.setHours(Number(hm.slice(0, 2)), Number(hm.slice(3, 5)), 0, 0);
+    await updateDoc(doc(db, "entries", b.dataset.ed),
+      { text: box.querySelector("textarea").value.trim(),
+        day, hm, at: at.getTime(), edited: true });
     toast("Updated");
   };
 });

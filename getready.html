@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Getting ready</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .phase { margin-bottom: 1.3rem; }
+  .phase-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: .6rem; padding: 0 .1rem .3rem;
+  }
+  .phase-head h2 { margin: 0; }
+  .phase-head .cnt { font-size: .78rem; color: var(--ink-faint); }
+  .gear {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: .6rem; align-items: start;
+    padding: .78rem 0; border-bottom: 1px solid var(--line);
+  }
+  .gear.done .nm { color: var(--ink-faint); text-decoration: line-through; }
+  .gear .nm { font-size: .97rem; }
+  .gear .px { font-size: .8rem; color: var(--sage); margin-top: .1rem; }
+  .gear .nt { font-size: .82rem; color: var(--ink-soft); margin-top: .18rem; }
+  .gear .mine { font-size: .8rem; color: var(--gold); margin-top: .22rem; }
+  .gear .link { font-size: .8rem; color: var(--sage); margin-top: .22rem; display: inline-block; }
+  .gear .addnote {
+    border: none; background: none; color: var(--ink-faint);
+    font-size: .76rem; text-decoration: underline; cursor: pointer;
+    padding: .2rem 0 0;
+  }
+  .bar { height: 5px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--sage); width: 0; }
+  .totals { margin-bottom: 1.4rem; }
+</style>
+</head>
+<body>
+
+<main class="wrap" id="main" hidden>
+  <h1>Getting ready</h1>
+  <p class="faint" style="margin-top:-.3rem">
+    Prices are rough US figures to plan around, not quotes. Tick things off as you get them.
+  </p>
+
+  <section class="panel totals">
+    <div class="panel-head"><h2>Progress</h2><span class="faint" id="pct"></span></div>
+    <div class="bar"><i id="barFill"></i></div>
+    <p class="faint" id="focus" style="margin:.7rem 0 0"></p>
+  </section>
+
+  <div id="list"></div>
+
+  <p class="faint" style="margin:1.4rem 0 1.5rem">
+    Ask about the breast pump before buying one. Insurance and Medicaid usually cover it.
+  </p>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, setDoc, collection,
+         query, onSnapshot, getProfile, progress, toast, esc, myName } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName);
+drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+
+/* which phase matters right now */
+const FOCUS = p.week < 28 ? "Now, weeks 15 to 27"
+            : p.week < 34 ? "Third trimester"
+            : "Hospital bag, hers";
+document.getElementById("focus").textContent =
+  "At week " + p.week + ", the section to be working on is " + FOCUS.toLowerCase() + ".";
+
+const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+const PHASES = [...new Set(GEAR.map(g => g[0]))];
+let STATE = {};
+
+function paint() {
+  const done = GEAR.filter(g => STATE[slug(g[1])]?.done).length;
+  const pctN = Math.round(done / GEAR.length * 100);
+  document.getElementById("pct").textContent = done + " of " + GEAR.length;
+  document.getElementById("barFill").style.width = pctN + "%";
+
+  document.getElementById("list").innerHTML = PHASES.map(ph => {
+    const items = GEAR.filter(g => g[0] === ph);
+    const got = items.filter(g => STATE[slug(g[1])]?.done).length;
+    return `<section class="phase">
+      <div class="phase-head">
+        <h2>${esc(ph)}</h2>
+        <span class="cnt">${got} of ${items.length}${ph === FOCUS ? " &middot; now" : ""}</span>
+      </div>
+      <div class="rows">${items.map(g => {
+        const id = slug(g[1]);
+        const st = STATE[id] || {};
+        return `<div class="gear ${st.done ? "done" : ""}">
+          <div>
+            <div class="nm">${esc(g[1])}</div>
+            <div class="px">${esc(g[2])}</div>
+            <div class="nt">${esc(g[3])}</div>
+            ${st.note ? `<div class="mine">${esc(st.note)}</div>` : ""}
+            ${st.link ? `<a class="link" href="${esc(st.link)}" target="_blank" rel="noopener">Open the link</a>` : ""}
+            <button class="addnote" data-note="${id}">${st.note || st.link ? "edit note" : "add a note or link"}</button>
+          </div>
+          <button class="check" data-tick="${id}" aria-pressed="${st.done ? "true" : "false"}"
+                  aria-label="${esc(g[1])}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+          </button>
+        </div>`;
+      }).join("")}</div>
+    </section>`;
+  }).join("");
+}
+
+async function save(id, patch) {
+  STATE[id] = Object.assign({}, STATE[id], patch, { by: myName() });
+  paint();
+  await setDoc(doc(db, "gear", id), STATE[id], { merge: true });
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-tick]");
+  if (t) {
+    const id = t.dataset.tick;
+    await save(id, { done: !(STATE[id]?.done) });
+    return;
+  }
+  const n = e.target.closest("[data-note]");
+  if (n) {
+    const id = n.dataset.note;
+    const note = prompt("A note, which shop, which one you picked:", STATE[id]?.note || "");
+    if (note === null) return;
+    const link = prompt("A link, optional. Leave empty for none:", STATE[id]?.link || "");
+    await save(id, { note: note.trim(), link: (link || "").trim() });
+    toast("Saved");
+  }
+});
+
+onSnapshot(query(collection(db, "gear")), s => {
+  STATE = {};
+  s.docs.forEach(d => { STATE[d.id] = d.data(); });
+  paint();
+});
+
+paint();
+</script>
+</body>
+</html>

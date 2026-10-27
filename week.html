@@ -50,7 +50,8 @@
       <h2 id="wTitle">Week</h2>
       <span class="faint" id="wTri"></span>
     </div>
-    <p class="big-size" id="wSize"></p>
+    <div id="wArt" style="text-align:center;padding:.3rem 0 .5rem"></div>
+    <p class="big-size" id="wSize" style="text-align:center"></p>
 
     <div class="defn">
       <div class="k">The baby</div>
@@ -74,6 +75,7 @@
 
 <script type="module">
 import { requireAuth, drawNav, drawTop, getProfile, progress, SETUP } from "./app.js";
+import { sizeArt } from "./illus.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -97,6 +99,7 @@ function show(w) {
   const d = WEEKS[w];
   document.getElementById("wTitle").textContent = "Week " + w + (w === live ? ", now" : "");
   document.getElementById("wTri").textContent = tri(w);
+  document.getElementById("wArt").innerHTML = sizeArt(d[0], 140);
   document.getElementById("wSize").textContent = "About the size of " + d[0] + ".";
   document.getElementById("wBaby").textContent = d[1];
   document.getElementById("wMom").textContent = d[2];

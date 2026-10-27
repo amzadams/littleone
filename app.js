@@ -34,8 +34,8 @@ export const SETUP = {
   lockAfterHours: 6,           // signs out after this many hours untouched. 0 turns it off
 
   dueDate: "2027-04-17",       // change this in Settings after the scan
-  herName: "Halima",
-  hisName: "Abdul-Manan",
+  herName: "Hali",
+  hisName: "Mann",
 
   herEmail: "halima@littleone.app",   // the account she signs in with
 

@@ -173,3 +173,65 @@ const RED_FLAGS = [
   "Fluid leaking from the vagina",
   "After 28 weeks: a clear drop in the baby's movement"
 ];
+
+/* ---- getting ready ----
+   [phase, item, rough price, note]
+   Prices are US ballpark figures and go stale, treat them as a guide.
+   Edit freely, this is just text.                                    */
+const GEAR = [
+  ["Now, weeks 15 to 27", "Maternity leggings and tops", "$15 to $40 each", "Two or three pairs is plenty. Target and Walmart are fine."],
+  ["Now, weeks 15 to 27", "Pregnancy pillow", "$30 to $60", "A U or C shape. She will use it every night from about week 20."],
+  ["Now, weeks 15 to 27", "Nursing bras", "$15 to $30 each", "Her size will change again later, so buy two for now."],
+  ["Now, weeks 15 to 27", "Belly support band", "$15 to $25", "For back ache once the bump gets heavy."],
+  ["Now, weeks 15 to 27", "Stretch mark cream or cocoa butter", "$8 to $15", "Evidence is thin but it helps with the itching."],
+  ["Now, weeks 15 to 27", "Prenatal vitamins, next bottle", "$20", "The 100 count runs about three months."],
+
+  ["Third trimester", "Infant car seat", "$80 to $250", "Buy new, never second hand. Get it checked, see the Local page."],
+  ["Third trimester", "Crib or bassinet", "$80 to $300", "A bassinet by the bed for the first months is easier."],
+  ["Third trimester", "Crib mattress and two sheets", "$40 to $90", "Firm and flat only. No pillows, no bumpers."],
+  ["Third trimester", "Stroller", "$100 to $400", "Check it clicks into your car seat before buying."],
+  ["Third trimester", "Baby monitor", "$30 to $120", "Audio only is enough for most people."],
+  ["Third trimester", "Changing mat", "$20 to $40", "A mat on a dresser beats a whole changing table."],
+  ["Third trimester", "Nappy bin", "$25 to $45", "Worth it in a small apartment."],
+  ["Third trimester", "Baby bath", "$15 to $30", "Or just use the kitchen sink early on."],
+  ["Third trimester", "Baby carrier or wrap", "$30 to $90", "Useful in a Grand Forks winter, hands free under a coat."],
+
+  ["Hospital bag, hers", "Going home outfit, loose", "already owned", "She will still look about six months pregnant."],
+  ["Hospital bag, hers", "Robe and slippers", "$25 to $50", "Hospital floors."],
+  ["Hospital bag, hers", "Toiletries and lip balm", "$15", "Delivery rooms are very dry."],
+  ["Hospital bag, hers", "Phone charger, long cable", "$10", "The sockets are never near the bed."],
+  ["Hospital bag, hers", "Snacks and a water bottle", "$15", "Labour is long and the cafeteria closes."],
+  ["Hospital bag, hers", "Insurance card and ID", "free", "Plus the Medicaid card if that comes through."],
+
+  ["Hospital bag, baby's", "Going home outfit", "$10 to $20", "Newborn size and 0 to 3 months, babies vary."],
+  ["Hospital bag, baby's", "Two swaddle blankets", "$15 to $25", "The hospital gives some but bring your own."],
+  ["Hospital bag, baby's", "Car seat, installed", "already bought", "They will not let you leave without it."],
+  ["Hospital bag, baby's", "Hat and socks", "$10", "Newborns lose heat fast."],
+
+  ["Hospital bag, yours", "Change of clothes, two days", "already owned", "You will be there longer than you think."],
+  ["Hospital bag, yours", "Pillow and blanket", "already owned", "The partner chair is not a bed."],
+  ["Hospital bag, yours", "Snacks and cash for parking", "$20", "Vending machines at 3am."],
+  ["Hospital bag, yours", "Camera or a charged phone", "free", "And space on it."],
+
+  ["Newborn at home", "Nappies, newborn and size 1", "$40 to $60 a month", "Do not stockpile newborn size, they grow out fast."],
+  ["Newborn at home", "Wipes, bulk", "$20", "You will use more than you expect."],
+  ["Newborn at home", "Nappy rash cream", "$8", "Zinc oxide based."],
+  ["Newborn at home", "Bodysuits and sleepsuits", "$40 to $80", "Six to eight of each, newborn and 0 to 3."],
+  ["Newborn at home", "Bottles, even if breastfeeding", "$20 to $40", "Start with two or three, babies have opinions."],
+  ["Newborn at home", "Breast pump", "often free", "Insurance and Medicaid usually cover one. Ask before buying."],
+  ["Newborn at home", "Burp cloths and muslins", "$20", "Ten of them. Not optional."],
+  ["Newborn at home", "Baby nail clippers and thermometer", "$20", "A digital thermometer you trust."],
+  ["Newborn at home", "Humidifier", "$30 to $50", "North Dakota winter air is brutally dry."],
+
+  ["For her afterwards", "Maternity pads", "$15", "Heavier than she expects, for several weeks."],
+  ["For her afterwards", "Peri bottle", "$10", "The hospital may give one. Take it."],
+  ["For her afterwards", "Nipple cream", "$12", "Lanolin or similar. Buy it before, not at 2am."],
+  ["For her afterwards", "Nursing pads", "$10", "Washable or disposable."],
+  ["For her afterwards", "Stool softener", "$8", "Nobody warns about this. Ask the doctor which."],
+  ["For her afterwards", "Easy food in the freezer", "free to $100", "Cook and freeze in week 36. Jollof freezes well."],
+
+  ["Car and home", "Car seat check appointment", "free", "Book for about week 36. Details on the Local page."],
+  ["Car and home", "Rear view baby mirror", "$10 to $20", "So she can see the baby while you drive."],
+  ["Car and home", "Route to the hospital, and a backup", "free", "Drive it once in winter conditions."],
+  ["Car and home", "Snow brush and a full tank from week 36", "free", "Labour does not wait for a cleared driveway."]
+];

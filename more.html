@@ -38,6 +38,18 @@
       <span><span class="t">Updates</span><br><span class="s">Anything either of you wants to share</span></span>
       <span class="chev">&rsaquo;</span>
     </a>
+    <a class="big-link" href="history.html">
+      <span><span class="t">Everything logged</span><br><span class="s" id="histSub">Every entry, every day, searchable</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="getready.html">
+      <span><span class="t">Getting ready</span><br><span class="s" id="gearSub">What to buy, by phase, with prices</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
+    <a class="big-link" href="local.html">
+      <span><span class="t">Local</span><br><span class="s">Car seat checks, clinic, Grand Forks help</span></span>
+      <span class="chev">&rsaquo;</span>
+    </a>
     <a class="big-link" href="flags.html">
       <span><span class="t">Warning signs</span><br><span class="s">When to call straight away</span></span>
       <span class="chev">&rsaquo;</span>
@@ -97,6 +109,18 @@ document.getElementById("lockNote").textContent = LOCK_MS
 
 document.getElementById("out").onclick    = () => leave();
 document.getElementById("switch").onclick = () => leave();
+
+onSnapshot(query(collection(db, "entries")), s => {
+  const n = s.docs.length;
+  if (n) document.getElementById("histSub").textContent =
+    n + (n === 1 ? " entry logged so far" : " entries logged so far");
+});
+
+onSnapshot(query(collection(db, "gear")), s => {
+  const done = s.docs.filter(d => d.data().done).length;
+  if (done) document.getElementById("gearSub").textContent =
+    done + " things ticked off so far";
+});
 
 onSnapshot(query(collection(db, "presence"), orderBy("lastSeen", "desc")), s => {
   const box = document.getElementById("seen");
