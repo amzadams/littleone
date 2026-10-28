@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baby registry</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .reg { display: grid; grid-template-columns: 1fr auto; gap: .6rem;
+    align-items: start; padding: .8rem 0; border-bottom: 1px solid var(--line); }
+  .reg.got .n { color: var(--ink-faint); text-decoration: line-through; }
+  .reg .n { font-size: 1rem; }
+  .reg .p { font-size: .82rem; color: var(--sage); margin-top: .12rem; }
+  .reg .w { font-size: .82rem; color: var(--ink-soft); margin-top: .12rem; }
+  .reg a { font-size: .8rem; color: var(--sage); }
+  .reg .acts { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; }
+  .reg .acts button { border: none; background: none; color: var(--ink-faint);
+    font-size: .76rem; text-decoration: underline; cursor: pointer; }
+  .prio { display: inline-block; font-size: .68rem; border-radius: 999px;
+    padding: .08rem .45rem; margin-left: .35rem; }
+  .p-must { background: var(--rose-soft); color: #7E333C; }
+  .p-nice { background: var(--gold-soft); color: #7A5614; }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Baby registry</h1>
+  <p class="faint" style="margin-top:-.3rem">
+    A list for when family ask what you need. Private to the two of you, copy it out to share.
+  </p>
+
+  <section class="panel">
+    <h2>Add something</h2>
+    <input type="text" id="item" placeholder="Infant car seat">
+    <div style="display:flex;gap:.5rem;margin-top:.6rem">
+      <input type="text" id="price" placeholder="$80 to $250" style="flex:1">
+      <select id="prio" style="flex:0 0 7.5rem">
+        <option value="must">Must have</option>
+        <option value="nice">Nice to have</option>
+      </select>
+    </div>
+    <label class="fl" for="link">Link, optional</label>
+    <input type="text" id="link" placeholder="https://">
+    <label class="fl" for="note">Note, optional</label>
+    <input type="text" id="note" placeholder="Rear facing, must fit the Civic">
+    <button class="btn wide" id="add" style="margin-top:.8rem">Add to the list</button>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>The list</h2><span class="faint" id="cnt"></span></div>
+    <div id="list"></div>
+    <button class="btn ghost wide" id="copy" style="margin-top:.9rem">Copy the list to send</button>
+    <p class="faint" style="margin:.6rem 0 0">
+      Nobody outside the two of you can open this site, so sharing means copying the text
+      into a message.
+    </p>
+  </section>
+
+  <section class="panel" style="margin-bottom:1.6rem">
+    <h2>Start it off</h2>
+    <p class="faint" style="margin:-.2rem 0 .7rem">
+      Pulls the bigger items from Getting ready so you are not typing them twice.
+    </p>
+    <button class="btn ghost wide" id="seed">Add the main items</button>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, deleteDoc, updateDoc,
+         collection, addDoc, query, onSnapshot, serverTimestamp,
+         toast, esc, myName, isAdmin } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+let ALL = [];
+
+document.getElementById("add").onclick = async () => {
+  const item = document.getElementById("item").value.trim();
+  if (!item) { toast("Name it first"); return; }
+  await addDoc(collection(db, "registry"), {
+    item,
+    price: document.getElementById("price").value.trim(),
+    prio: document.getElementById("prio").value,
+    link: document.getElementById("link").value.trim(),
+    note: document.getElementById("note").value.trim(),
+    got: false, by: myName(), createdAt: serverTimestamp()
+  });
+  ["item", "price", "link", "note"].forEach(id => document.getElementById(id).value = "");
+  toast("Added");
+};
+
+document.getElementById("seed").onclick = async () => {
+  const want = GEAR.filter(g =>
+    g[0] === "Third trimester" || g[0] === "Newborn at home" || g[0] === "Car and home");
+  const have = new Set(ALL.map(r => r.d.item.toLowerCase()));
+  let n = 0;
+  for (const g of want) {
+    if (have.has(g[1].toLowerCase())) continue;
+    if (/free|already/.test(g[2])) continue;
+    await addDoc(collection(db, "registry"), {
+      item: g[1], price: g[2], prio: "must", link: "", note: g[3],
+      got: false, by: myName(), createdAt: serverTimestamp()
+    });
+    n++;
+  }
+  toast(n ? n + " added" : "Already there");
+};
+
+function paint() {
+  const open = ALL.filter(r => !r.d.got);
+  document.getElementById("cnt").textContent =
+    ALL.length ? open.length + " still needed of " + ALL.length : "";
+
+  const order = { must: 0, nice: 1 };
+  const rows = ALL.slice().sort((a, b) =>
+    (a.d.got ? 1 : 0) - (b.d.got ? 1 : 0) ||
+    (order[a.d.prio] ?? 1) - (order[b.d.prio] ?? 1) ||
+    a.d.item.localeCompare(b.d.item));
+
+  document.getElementById("list").innerHTML = rows.length ? rows.map(r => `
+    <div class="reg ${r.d.got ? "got" : ""}">
+      <div>
+        <div class="n">${esc(r.d.item)}<span class="prio p-${esc(r.d.prio || "nice")}">${
+          r.d.prio === "must" ? "must have" : "nice"}</span></div>
+        ${r.d.price ? `<div class="p">${esc(r.d.price)}</div>` : ""}
+        ${r.d.note ? `<div class="w">${esc(r.d.note)}</div>` : ""}
+        ${r.d.link ? `<a href="${esc(r.d.link)}" target="_blank" rel="noopener">Open the link</a>` : ""}
+      </div>
+      <div class="acts">
+        <button data-got="${r.id}">${r.d.got ? "not yet" : "got it"}</button>
+        ${isAdmin() ? `<button data-rm="${r.id}">remove</button>` : ""}
+      </div>
+    </div>`).join("") : `<p class="empty">Nothing on the list yet.</p>`;
+
+  document.querySelectorAll("[data-got]").forEach(b => b.onclick = async () => {
+    const r = ALL.find(x => x.id === b.dataset.got);
+    await updateDoc(doc(db, "registry", b.dataset.got), { got: !r.d.got });
+  });
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    if (!confirm("Remove this?")) return;
+    await deleteDoc(doc(db, "registry", b.dataset.rm));
+  });
+}
+
+document.getElementById("copy").onclick = async () => {
+  const open = ALL.filter(r => !r.d.got);
+  if (!open.length) { toast("Nothing left to ask for"); return; }
+  const text = "What we still need for the baby\n\n" + open.map(r =>
+    "- " + r.d.item + (r.d.price ? " (" + r.d.price + ")" : "") +
+    (r.d.note ? "\n  " + r.d.note : "") +
+    (r.d.link ? "\n  " + r.d.link : "")).join("\n");
+  try { await navigator.clipboard.writeText(text); toast("Copied"); }
+  catch (e) { prompt("Copy this:", text); }
+};
+
+onSnapshot(query(collection(db, "registry")), s => {
+  ALL = s.docs.map(d => ({ id: d.id, d: d.data() }));
+  paint();
+});
+</script>
+</body>
+</html>

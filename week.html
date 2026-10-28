@@ -50,6 +50,7 @@
       <h2 id="wTitle">Week</h2>
       <span class="faint" id="wTri"></span>
     </div>
+    <div id="wPhoto"></div>
     <div id="wArt" style="text-align:center;padding:.3rem 0 .5rem"></div>
     <p class="big-size" id="wSize" style="text-align:center"></p>
 
@@ -74,7 +75,8 @@
 </main>
 
 <script type="module">
-import { requireAuth, drawNav, drawTop, getProfile, progress, SETUP } from "./app.js";
+import { requireAuth, drawNav, drawTop, getProfile, progress, SETUP,
+         db, doc, collection, query, onSnapshot, esc } from "./app.js";
 import { sizeArt } from "./illus.js";
 
 await requireAuth();
@@ -99,7 +101,14 @@ function show(w) {
   const d = WEEKS[w];
   document.getElementById("wTitle").textContent = "Week " + w + (w === live ? ", now" : "");
   document.getElementById("wTri").textContent = tri(w);
-  document.getElementById("wArt").innerHTML = sizeArt(d[0], 140);
+  const a = ART[w];
+  document.getElementById("wPhoto").innerHTML = a
+    ? `<div style="border-radius:var(--r-md);overflow:hidden;aspect-ratio:1;margin-bottom:.9rem">
+         <img src="${esc(a.url)}" alt="The baby at week ${w}"
+           style="width:100%;height:100%;object-fit:cover;object-position:center ${
+             esc(a.pos || "center")};display:block"></div>`
+    : "";
+  document.getElementById("wArt").innerHTML = sizeArt(d[0], a ? 96 : 140);
   document.getElementById("wSize").textContent = "About the size of " + d[0] + ".";
   document.getElementById("wBaby").textContent = d[1];
   document.getElementById("wMom").textContent = d[2];
@@ -113,6 +122,13 @@ function show(w) {
 strip.addEventListener("click", e => {
   const b = e.target.closest("button");
   if (b) show(Number(b.dataset.w));
+});
+
+let ART = {};
+onSnapshot(query(collection(db, "weekart")), s => {
+  ART = {};
+  s.docs.forEach(x => ART[Number(x.id)] = x.data());
+  show(shown);
 });
 
 show(live);

@@ -3,76 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>More</title>
+<title>Tools</title>
 <meta name="theme-color" content="#EEF1EA">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-  .big-link {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: .8rem; padding: .95rem 0; border-bottom: 1px solid var(--line);
-    text-decoration: none; color: var(--ink);
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: .7rem;
+    margin-top: .3rem;
   }
-  .big-link .t { font-family: var(--serif); font-size: 1.12rem; }
-  .big-link .s { font-size: .82rem; color: var(--ink-faint); }
-  .big-link .chev { color: var(--ink-faint); font-size: 1.1rem; }
+  .tile {
+    display: block;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 0 0 .9rem;
+    text-decoration: none;
+    color: var(--ink);
+    overflow: hidden;
+    box-shadow: var(--lift);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .tile:active { transform: scale(.985); box-shadow: none; }
+  .tile .top {
+    background: var(--tint);
+    padding: 1.1rem 0 1rem;
+    display: grid; place-items: center;
+    margin-bottom: .75rem;
+  }
+  .tile .badge {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--panel);
+    display: grid; place-items: center;
+    color: var(--accent);
+  }
+  .tile .t { display: block; font-family: var(--serif); font-size: 1.04rem;
+             line-height: 1.2; padding: 0 .85rem; }
+  .tile .s { display: block; font-size: .79rem; color: var(--ink-faint);
+             padding: .18rem .85rem 0; }
+
+  .tile.soon { opacity: .62; }
+  .tile.soon .badge { color: var(--ink-faint); }
+  .tile .soonpill {
+    position: absolute; top: .6rem; right: .6rem;
+    font-size: .64rem; background: var(--line); color: var(--ink-soft);
+    border-radius: 999px; padding: .1rem .45rem;
+  }
+  .tile { position: relative; }
+
+  .group-title {
+    font-family: var(--serif); font-size: 1.12rem;
+    margin: 1.6rem 0 .1rem; padding: 0 .15rem;
+  }
 </style>
 </head>
 <body>
 
 <main class="wrap" id="main" hidden>
-  <h1>More</h1>
+  <h1>Tools</h1>
 
-  <nav style="border-top:1px solid var(--line);margin-top:.6rem">
-    <a class="big-link" href="appointments.html">
-      <span><span class="t">Visits</span><br><span class="s" id="apptSub">Dates, questions, what the doctor said</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="gallery.html">
-      <span><span class="t">Pictures</span><br><span class="s">Scans and the bump over time</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="updates.html">
-      <span><span class="t">Updates</span><br><span class="s">Anything either of you wants to share</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="history.html">
-      <span><span class="t">Everything logged</span><br><span class="s" id="histSub">Every entry, every day, searchable</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="getready.html">
-      <span><span class="t">Getting ready</span><br><span class="s" id="gearSub">What to buy, by phase, with prices</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="local.html">
-      <span><span class="t">Local</span><br><span class="s">Car seat checks, clinic, Grand Forks help</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="flags.html">
-      <span><span class="t">Warning signs</span><br><span class="s">When to call straight away</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-    <a class="big-link" href="settings.html">
-      <span><span class="t">Settings</span><br><span class="s">Due date, names, notifications</span></span>
-      <span class="chev">&rsaquo;</span>
-    </a>
-  </nav>
+  <div class="tiles" id="core"></div>
 
-  <section class="panel" style="margin-top:1.4rem">
-    <h2>Clinic</h2>
-    <p class="muted" id="clinic"></p>
-    <a class="btn wide" id="call">Call the clinic</a>
-  </section>
+  <h2 class="group-title">Keeping track</h2>
+  <div class="tiles" id="track"></div>
 
-  <section class="panel" style="margin-top:1rem">
+  <h2 class="group-title">Getting ready</h2>
+  <div class="tiles" id="prep"></div>
+
+  <h2 class="group-title">Help and settings</h2>
+  <div class="tiles" id="help"></div>
+
+  <section class="panel" style="margin-top:1.6rem">
     <h2>Who is here</h2>
     <div class="rows" id="seen"></div>
     <p class="faint" id="lockNote" style="margin:.8rem 0 0"></p>
   </section>
 
-  <section class="panel">
+  <section class="panel" style="margin-bottom:1.6rem">
     <h2>Account</h2>
     <p class="muted" id="whoami" style="margin-bottom:.9rem"></p>
     <button class="btn ghost wide" id="switch">Switch to the other account</button>
@@ -84,22 +95,83 @@
 import { requireAuth, drawNav, drawTop, SETUP, esc, myName, isAdmin, leave,
          timeAgo, LOCK_MS, db, collection, query, orderBy, onSnapshot,
          dayKey, prettyDate } from "./app.js";
+import { icon } from "./illus.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
 drawNav("more.html");
 document.getElementById("main").hidden = false;
 
-document.getElementById("clinic").textContent = SETUP.clinicName + ", " + SETUP.clinicPhone;
-document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+/* [href, icon, title, subtitle, id-for-live-subtitle] */
+const CORE = [
+  ["history.html",      "entries",  "Everything logged", "Every entry, searchable", "histSub"],
+  ["log.html",          "food",     "Today",             "Add a meal, symptom, note"],
+  ["gallery.html",      "pictures", "Scans and bump",    "Pictures by week",        "picSub"],
+  ["updates.html",      "updates",  "Updates",           "What you have told each other"],
+  ["weekart.html",      "bump",     "Week pictures",     "A picture per week",      "artSub"]
+];
+const TRACK = [
+  ["weight.html",       "weight",   "Weight",      "Log it weekly",            "wSub"],
+  ["kicks.html",        "kicks",    "Kick counter","Count to ten",             "kSub"],
+  ["appointments.html", "visits",   "Visits",      "Dates and questions",      "apptSub"],
+  ["food.html",         "food",     "Can she have it?", "Food and medicine"]
+];
+const PREP = [
+  ["getready.html",     "ready",    "Getting ready", "What to buy, by phase",   "gearSub"],
+  ["registry.html",     "registry", "Baby registry", "What to ask family for", "rSub"],
+  ["bag.html",          "bag",      "Hospital bag",  "What to pack",            "bSub"],
+  ["names.html",        "names",    "Baby names",    "Add and vote",           "nSub"],
+  ["birthplan.html",    "plan",     "Birth plan",    "Her preferences"],
+  ["contractions.html", "timer",    "Contractions",  "From week 37"]
+];
+const HELP = [
+  ["local.html",        "local",    "Local",         "Car seat checks, clinic"],
+  ["flags.html",        "flags",    "Warning signs", "When to call straight away"],
+  ["settings.html",     "settings", "Settings",      "Due date, notifications"]
+];
 
+function tiles(list) {
+  return list.map(([href, ic, t, s, id, soon]) => `
+    <a class="tile ${soon ? "soon" : ""}" href="${soon ? "#" : href}"
+       ${soon ? 'aria-disabled="true"' : ""}>
+      ${soon ? '<span class="soonpill">soon</span>' : ""}
+      <span class="top"><span class="badge">${icon(ic, 26)}</span></span>
+      <span class="t">${t}</span>
+      <span class="s"${id ? ` id="${id}"` : ""}>${s}</span>
+    </a>`).join("");
+}
+
+document.getElementById("core").innerHTML  = tiles(CORE);
+document.getElementById("track").innerHTML = tiles(TRACK);
+document.getElementById("prep").innerHTML  = tiles(PREP);
+document.getElementById("help").innerHTML  = tiles(HELP);
+
+document.querySelectorAll('.tile.soon').forEach(a =>
+  a.addEventListener("click", e => e.preventDefault()));
+
+/* ---- live counts in the subtitles ---- */
+onSnapshot(query(collection(db, "entries")), s => {
+  const n = s.docs.length;
+  if (n) document.getElementById("histSub").textContent =
+    n + (n === 1 ? " entry so far" : " entries so far");
+});
+onSnapshot(query(collection(db, "photos")), s => {
+  const n = s.docs.length;
+  if (n) document.getElementById("picSub").textContent =
+    n + (n === 1 ? " picture" : " pictures");
+});
+onSnapshot(query(collection(db, "gear")), s => {
+  const n = s.docs.filter(d => d.data().done).length;
+  if (n) document.getElementById("gearSub").textContent = n + " ticked off";
+});
 onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
   const now = dayKey();
   const next = s.docs.map(d => d.data()).find(a => a.date >= now);
-  document.getElementById("apptSub").textContent =
-    next ? "Next: " + prettyDate(next.date) : "Dates, questions, what the doctor said";
+  if (next) document.getElementById("apptSub").textContent =
+    "Next: " + prettyDate(next.date);
 });
 
+/* ---- account ---- */
 document.getElementById("whoami").textContent =
   "Signed in as " + myName() + (isAdmin() ? ", full access" : ", can add and edit");
 
@@ -110,16 +182,21 @@ document.getElementById("lockNote").textContent = LOCK_MS
 document.getElementById("out").onclick    = () => leave();
 document.getElementById("switch").onclick = () => leave();
 
-onSnapshot(query(collection(db, "entries")), s => {
-  const n = s.docs.length;
-  if (n) document.getElementById("histSub").textContent =
-    n + (n === 1 ? " entry logged so far" : " entries logged so far");
+onSnapshot(query(collection(db, "weekart")), s => {
+  if (s.size) document.getElementById("artSub").textContent = s.size + " weeks have one";
 });
-
-onSnapshot(query(collection(db, "gear")), s => {
-  const done = s.docs.filter(d => d.data().done).length;
-  if (done) document.getElementById("gearSub").textContent =
-    done + " things ticked off so far";
+onSnapshot(query(collection(db, "weights")), s => {
+  if (s.size) document.getElementById("wSub").textContent = s.size + " readings";
+});
+onSnapshot(query(collection(db, "kicks")), s => {
+  if (s.size) document.getElementById("kSub").textContent = s.size + " sessions";
+});
+onSnapshot(query(collection(db, "names")), s => {
+  if (s.size) document.getElementById("nSub").textContent = s.size + " on the list";
+});
+onSnapshot(query(collection(db, "registry")), s => {
+  const left = s.docs.filter(d => !d.data().got).length;
+  if (s.size) document.getElementById("rSub").textContent = left + " still needed";
 });
 
 onSnapshot(query(collection(db, "presence"), orderBy("lastSeen", "desc")), s => {
@@ -127,12 +204,10 @@ onSnapshot(query(collection(db, "presence"), orderBy("lastSeen", "desc")), s => 
   if (s.empty) { box.innerHTML = `<p class="empty" style="padding:.6rem 0">No visits recorded yet.</p>`; return; }
   box.innerHTML = s.docs.map(d => {
     const p = d.data();
-    return `<div class="row">
-      <div class="row-main">
-        <div class="t">${esc(p.name || d.id)}</div>
-        <div class="s">last opened ${timeAgo(p.lastSeen)}${p.page ? ", on " + esc(p.page) : ""}</div>
-      </div>
-    </div>`;
+    return `<div class="row"><div class="row-main">
+      <div class="t">${esc(p.name || d.id)}</div>
+      <div class="s">last opened ${timeAgo(p.lastSeen)}${p.page ? ", on " + esc(p.page) : ""}</div>
+    </div></div>`;
   }).join("");
 });
 </script>

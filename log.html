@@ -86,11 +86,12 @@
     <h2>Add something</h2>
     <p class="faint" style="margin:-.2rem 0 .7rem">
       Food, a symptom, a walk, a thought. Change the day to log something
-      from earlier in the week. Pictures are shrunk automatically.
+      from earlier in the week.
     </p>
 
     <div class="types" id="types"></div>
 
+    <div id="form" hidden>
     <textarea id="txt" placeholder="Banku with kontomire. Went down fine."></textarea>
 
     <div style="display:flex;gap:.5rem;margin-top:.6rem">
@@ -108,8 +109,13 @@
     <label class="fl" for="file">Picture, optional</label>
     <input type="file" id="file" class="filepick" accept="image/*">
 
-    <button class="btn wide" id="add" style="margin-top:.9rem">Add entry</button>
+    <div style="display:flex;gap:.5rem;margin-top:.9rem">
+      <button class="btn" id="add" style="flex:1">Add entry</button>
+      <button class="btn ghost" id="cancel" style="flex:0 0 auto">Cancel</button>
+    </div>
     <p class="faint" id="prog" style="margin:.5rem 0 0"></p>
+    </div>
+    <p class="faint" id="pick" style="margin:.2rem 0 0">Pick what it is to start.</p>
   </section>
 
   <!-- ---------- today's timeline ---------- -->
@@ -210,18 +216,36 @@ const PLACEHOLDER = {
   scan:  "16 week scan report."
 };
 
-let kind = "meal";
+let kind = null;
 
 document.getElementById("types").innerHTML = TYPES.map(([k, label]) =>
-  `<button data-k="${k}" aria-pressed="${k === kind}">${label}</button>`).join("");
+  `<button data-k="${k}" aria-pressed="false">${label}</button>`).join("");
+
+function closeForm() {
+  kind = null;
+  document.getElementById("form").hidden = true;
+  document.getElementById("pick").hidden = false;
+  document.getElementById("txt").value = "";
+  document.getElementById("file").value = "";
+  document.getElementById("prog").textContent = "";
+  document.querySelectorAll("#types button").forEach(x =>
+    x.setAttribute("aria-pressed", "false"));
+}
 
 document.getElementById("types").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
+  if (kind === b.dataset.k) { closeForm(); return; }
   kind = b.dataset.k;
   document.querySelectorAll("#types button").forEach(x =>
     x.setAttribute("aria-pressed", String(x === b)));
-  document.getElementById("txt").placeholder = PLACEHOLDER[kind] || "";
+  document.getElementById("form").hidden = false;
+  document.getElementById("pick").hidden = true;
+  const ta = document.getElementById("txt");
+  ta.placeholder = PLACEHOLDER[kind] || "";
+  ta.focus();
 });
+
+document.getElementById("cancel").onclick = closeForm;
 
 /* default the day and time to now, and never allow a future day */
 const dtBox = document.getElementById("dt");
@@ -282,11 +306,10 @@ document.getElementById("add").onclick = async () => {
       createdAt: serverTimestamp()
     });
 
-    document.getElementById("txt").value = "";
-    document.getElementById("file").value = "";
-    prog.textContent = "";
     toast(dayPick === todayKey ? "Added" : "Added to " + prettyDate(dayPick));
-    if (dayPick !== todayKey) { picked = dayPick; }
+    if (dayPick !== todayKey) picked = dayPick;
+    closeForm();
+    document.getElementById("tlTitle").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     prog.textContent = "Could not save. " + (err.message || "");
   }

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Birth plan</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .q { padding: .9rem 0; border-bottom: 1px solid var(--line); }
+  .q .ask { font-size: .97rem; margin-bottom: .5rem; }
+  .opts { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .opts button { border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+    border-radius: 999px; padding: .34rem .78rem; font-family: var(--sans);
+    font-size: .82rem; cursor: pointer; }
+  .opts button[aria-pressed="true"] { background: var(--sage); border-color: var(--sage); color: #fff; }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Birth plan</h1>
+  <p class="faint" style="margin-top:-.3rem">
+    Her preferences, not a contract. Births change course and that is normal.
+    Bring it to a visit around week 32 and talk it through.
+  </p>
+
+  <div id="list"></div>
+
+  <section class="panel">
+    <h2>Anything else</h2>
+    <textarea id="free" placeholder="Music, who is in the room, faith or cultural things that matter"></textarea>
+    <button class="btn wide" id="saveFree" style="margin-top:.7rem">Save</button>
+  </section>
+
+  <section class="panel" style="margin-bottom:1.6rem">
+    <button class="btn ghost wide" id="copy">Copy it out to print or send</button>
+    <p class="faint" style="margin:.6rem 0 0">Hand a copy to the midwife when you arrive.</p>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, getDoc, setDoc,
+         onSnapshot, collection, query, toast, esc, myName } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const PLAN = [
+  ["Labour", [
+    ["who", "Who she wants in the room", ["Just you", "You and family", "Decide later"]],
+    ["move", "Moving about in labour", ["Free to walk", "Mostly in bed", "Not decided"]],
+    ["pain", "Pain relief", ["Epidural if wanted", "Try without first", "No strong preference"]],
+    ["mood", "The room", ["Quiet and dim", "Normal", "No preference"]]
+  ]],
+  ["The birth", [
+    ["pos", "Position", ["Whatever feels right", "On her back", "Not decided"]],
+    ["cut", "If a cut is needed", ["Only if necessary", "Discuss first", "Doctor decides"]],
+    ["cord", "Cutting the cord", ["You cut it", "Staff cut it", "Not decided"]],
+    ["delay", "Delayed cord clamping", ["Yes if possible", "No preference"]]
+  ]],
+  ["Straight after", [
+    ["skin", "Skin to skin right away", ["Yes", "No preference"]],
+    ["feed", "Feeding", ["Breastfeed", "Bottle", "Both", "Decide after"]],
+    ["photo", "Photos in the room", ["Yes", "No", "Ask first"]],
+    ["stay", "If the baby needs care", ["You go with the baby", "You stay with her"]]
+  ]],
+  ["If plans change", [
+    ["csec", "If a caesarean is needed", ["You in the room", "Explain as you go", "No preference"]],
+    ["tell", "How she wants decisions handled", ["Tell her everything", "Tell you, you tell her"]]
+  ]]
+];
+
+let DATA = {};
+
+function paint() {
+  document.getElementById("list").innerHTML = PLAN.map(([sec, qs]) => `
+    <section class="panel">
+      <h2>${esc(sec)}</h2>
+      ${qs.map(([k, ask, opts]) => `
+        <div class="q">
+          <div class="ask">${esc(ask)}</div>
+          <div class="opts" data-k="${k}">
+            ${opts.map(o => `<button data-v="${esc(o)}"
+              aria-pressed="${DATA[k] === o}">${esc(o)}</button>`).join("")}
+          </div>
+        </div>`).join("")}
+    </section>`).join("");
+  document.getElementById("free").value = DATA.free || "";
+}
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest(".opts button"); if (!b) return;
+  const k = b.closest(".opts").dataset.k;
+  DATA[k] = DATA[k] === b.dataset.v ? null : b.dataset.v;
+  paint();
+  await setDoc(doc(db, "birthplan", "main"),
+    Object.assign({}, DATA, { by: myName() }), { merge: true });
+});
+
+document.getElementById("saveFree").onclick = async () => {
+  DATA.free = document.getElementById("free").value;
+  await setDoc(doc(db, "birthplan", "main"),
+    Object.assign({}, DATA, { by: myName() }), { merge: true });
+  toast("Saved");
+};
+
+document.getElementById("copy").onclick = async () => {
+  let out = "Birth preferences for " + SETUP.herName + "\n";
+  for (const [sec, qs] of PLAN) {
+    const picked = qs.filter(q => DATA[q[0]]);
+    if (!picked.length) continue;
+    out += "\n" + sec + "\n" + picked.map(q => "  " + q[1] + ": " + DATA[q[0]]).join("\n") + "\n";
+  }
+  if (DATA.free) out += "\nAlso\n  " + DATA.free + "\n";
+  out += "\nThese are preferences. We understand things change.";
+  try { await navigator.clipboard.writeText(out); toast("Copied"); }
+  catch (e) { prompt("Copy this:", out); }
+};
+
+onSnapshot(query(collection(db, "birthplan")), s => {
+  const d = s.docs.find(x => x.id === "main");
+  DATA = d ? d.data() : {};
+  paint();
+});
+paint();
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baby names</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .nm-row { display: grid; grid-template-columns: 1fr auto auto; gap: .5rem;
+    align-items: center; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+  .nm-row .n { font-family: var(--serif); font-size: 1.12rem; }
+  .nm-row .s { font-size: .76rem; color: var(--ink-faint); }
+  .vote { border: 1px solid var(--line); background: transparent; border-radius: 999px;
+    padding: .28rem .6rem; font-size: .76rem; cursor: pointer; color: var(--ink-soft);
+    font-family: var(--sans); }
+  .vote[aria-pressed="true"] { background: var(--sage); border-color: var(--sage); color: #fff; }
+  .vote.no[aria-pressed="true"] { background: var(--rose); border-color: var(--rose); }
+  .both { background: var(--gold-soft); border-left: 4px solid var(--gold); }
+  .filters { display: flex; gap: .35rem; margin: .7rem 0 .2rem; flex-wrap: wrap; }
+  .filters button { border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+    border-radius: 999px; padding: .3rem .72rem; font-family: var(--sans);
+    font-size: .78rem; cursor: pointer; }
+  .filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Baby names</h1>
+  <p class="faint" style="margin-top:-.3rem">Both of you add. Both of you vote. Agreement floats to the top.</p>
+
+  <section class="panel">
+    <h2>Add a name</h2>
+    <input type="text" id="nm" placeholder="A name, and why if you like" autocomplete="off">
+    <div style="display:flex;gap:.5rem;margin-top:.6rem">
+      <select id="sex" style="flex:1">
+        <option value="girl">Girl</option>
+        <option value="boy">Boy</option>
+        <option value="either">Either</option>
+      </select>
+      <button class="btn" id="add" style="flex:0 0 auto">Add</button>
+    </div>
+    <label class="fl" for="why">Meaning or why, optional</label>
+    <input type="text" id="why" placeholder="After her grandmother">
+  </section>
+
+  <div class="filters" id="filters">
+    <button data-f="all" aria-pressed="true">All</button>
+    <button data-f="girl" aria-pressed="false">Girls</button>
+    <button data-f="boy" aria-pressed="false">Boys</button>
+    <button data-f="agreed" aria-pressed="false">Both said yes</button>
+  </div>
+
+  <div id="list" style="margin-bottom:1.6rem"></div>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, setDoc, deleteDoc, updateDoc,
+         collection, addDoc, query, onSnapshot, serverTimestamp,
+         toast, esc, myName, side, isAdmin } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const ME = side();
+let ALL = [], filter = "all";
+
+document.getElementById("add").onclick = async () => {
+  const name = document.getElementById("nm").value.trim();
+  if (!name) { toast("Type a name first"); return; }
+  await addDoc(collection(db, "names"), {
+    name, sex: document.getElementById("sex").value,
+    why: document.getElementById("why").value.trim(),
+    votes: { [ME]: "yes" },
+    by: myName(), createdAt: serverTimestamp()
+  });
+  document.getElementById("nm").value = "";
+  document.getElementById("why").value = "";
+  toast("Added");
+};
+document.getElementById("nm").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("add").click();
+});
+
+document.getElementById("filters").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll("#filters button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+  paint();
+});
+
+function score(v) {
+  const h = v.her, m = v.him;
+  if (h === "yes" && m === "yes") return 3;
+  if (h === "yes" || m === "yes") return 2;
+  if (h === "no" && m === "no") return 0;
+  return 1;
+}
+
+function paint() {
+  let rows = ALL.slice();
+  if (filter === "girl" || filter === "boy")
+    rows = rows.filter(r => r.d.sex === filter || r.d.sex === "either");
+  if (filter === "agreed")
+    rows = rows.filter(r => score(r.d.votes || {}) === 3);
+  rows.sort((a, b) => score(b.d.votes || {}) - score(a.d.votes || {}) ||
+                      a.d.name.localeCompare(b.d.name));
+
+  const list = document.getElementById("list");
+  if (!rows.length) { list.innerHTML = `<p class="empty">Nothing here yet.</p>`; return; }
+
+  list.innerHTML = rows.map(r => {
+    const v = r.d.votes || {};
+    const agreed = score(v) === 3;
+    const other = ME === "her" ? v.him : v.her;
+    const otherName = ME === "her" ? SETUP.hisName : SETUP.herName;
+    return `<div class="nm-row ${agreed ? "both" : ""}" style="${
+      agreed ? "padding-left:.7rem;border-radius:var(--r-md)" : ""}">
+      <div>
+        <div class="n">${esc(r.d.name)}${agreed ? " \u2713" : ""}</div>
+        <div class="s">${esc(r.d.sex)}${r.d.why ? " &middot; " + esc(r.d.why) : ""}${
+          other ? " &middot; " + esc(otherName) + " said " + esc(other) : ""}</div>
+      </div>
+      <button class="vote" data-y="${r.id}" aria-pressed="${v[ME] === "yes"}">yes</button>
+      <button class="vote no" data-n="${r.id}" aria-pressed="${v[ME] === "no"}">no</button>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll("[data-y]").forEach(b => b.onclick = () => vote(b.dataset.y, "yes"));
+  document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => vote(b.dataset.n, "no"));
+}
+
+async function vote(id, how) {
+  const row = ALL.find(r => r.id === id);
+  const v = Object.assign({}, row.d.votes);
+  v[ME] = v[ME] === how ? null : how;
+  if (!v[ME]) delete v[ME];
+  await updateDoc(doc(db, "names", id), { votes: v });
+}
+
+onSnapshot(query(collection(db, "names")), s => {
+  ALL = s.docs.map(d => ({ id: d.id, d: d.data() }));
+  paint();
+});
+</script>
+</body>
+</html>

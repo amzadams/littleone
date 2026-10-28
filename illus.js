@@ -320,3 +320,105 @@ export function sizeArt(phrase, px = 150) {
 }
 
 export function hasArt(phrase) { return !!ART[keyOf(phrase)]; }
+
+/* ============================================================
+   babyArt  -  an original drawing of a curled baby.
+   Nothing traced, nothing downloaded. Proportions shift with
+   the week: big head and tucked limbs early, fuller later.
+   ============================================================ */
+
+export function babyArt(week, px = 300) {
+  const t = Math.max(0, Math.min(1, (week - 6) / 34));   // 0 early, 1 at term
+  const head = 25 - t * 5;          // head shrinks relative to body
+  const body = 20 + t * 9;
+  const skin = "#D9A98C", skinD = "#C08F72", skinL = "#E8C2A8";
+  const warm = "#EFD9C6", warmD = "#E3C4AA";
+
+  return `<svg viewBox="0 0 200 200" width="${px}" height="${px}"
+    role="img" aria-label="Illustration of a baby at week ${week}"
+    xmlns="http://www.w3.org/2000/svg">
+
+    <defs>
+      <clipPath id="womb"><ellipse cx="100" cy="100" rx="92" ry="92"/></clipPath>
+    </defs>
+
+    <ellipse cx="100" cy="100" rx="92" ry="92" fill="${warm}"/>
+    <g clip-path="url(#womb)">
+      <ellipse cx="128" cy="62" rx="86" ry="74" fill="${warmD}" opacity=".55"/>
+      <ellipse cx="62" cy="150" rx="92" ry="66" fill="#F6E7DA" opacity=".5"/>
+
+      <!-- cord -->
+      <path d="M104 ${112 + t * 4} C140 ${118 + t * 4} 168 ${96 + t * 4} 188 ${72 + t * 4}"
+            stroke="${skinL}" stroke-width="5" fill="none" stroke-linecap="round" opacity=".75"/>
+
+      <!-- back and bottom, one curled form -->
+      <path d="M86 ${72 - t * 2}
+               C${118 + t * 6} ${74 - t * 2} ${124 + t * 8} ${104 + t * 6} ${112 + t * 4} ${126 + t * 8}
+               C${102 + t * 2} ${144 + t * 8} 74 ${146 + t * 6} 64 ${128 + t * 6}
+               C${54 - t * 4} ${110 + t * 4} ${58 - t * 2} ${82 - t * 2} 86 ${72 - t * 2} Z"
+            fill="${skin}"/>
+
+      <!-- thigh and tucked leg -->
+      <path d="M${96 + t * 4} ${124 + t * 6}
+               q${18 + t * 6} ${10 + t * 2} ${10 + t * 4} ${26 + t * 4}
+               q${-8 - t * 2} ${14} ${-26 - t * 4} ${8}
+               q${-12} ${-6} ${-6} ${-20} Z" fill="${skinD}"/>
+      <path d="M${84 + t * 2} ${150 + t * 8}
+               q${16} ${6} ${22} ${-2}
+               q${4} ${10} ${-8} ${14}
+               q${-14} ${3} ${-14} ${-12} Z" fill="${skin}"/>
+
+      <!-- arm across the chest -->
+      <path d="M${90 + t * 2} ${96 + t * 4}
+               q${-20} ${6} ${-22} ${24}
+               q${-1} ${12} ${10} ${13}
+               q${8} 0 ${7} ${-10}
+               q${-1} ${-14} ${12} ${-18} Z" fill="${skinD}" opacity=".9"/>
+
+      <!-- head -->
+      <circle cx="${78 - t * 2}" cy="${66 - t * 4}" r="${head}" fill="${skin}"/>
+      <path d="M${78 - t * 2 - head} ${62 - t * 4}
+               a${head} ${head} 0 0 1 ${head * 1.5} ${-head * .72}"
+            stroke="${skinL}" stroke-width="${head * .3}" fill="none" stroke-linecap="round"/>
+
+      <!-- ear, closed eye, the suggestion of a face -->
+      <circle cx="${86 - t * 2}" cy="${70 - t * 4}" r="${head * .17}" fill="${skinD}"/>
+      <path d="M${68 - t * 2} ${64 - t * 4} q${head * .18} ${head * .16} ${head * .36} 0"
+            stroke="${skinD}" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M${66 - t * 2} ${74 - t * 4} q${head * .2} ${head * .14} ${head * .4} ${-head * .04}"
+            stroke="${skinD}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".7"/>
+
+      <!-- hand near the face -->
+      <circle cx="${70 - t * 2}" cy="${94 + t * 2}" r="${7 + t * 2}" fill="${skinL}"/>
+    </g>
+    <ellipse cx="100" cy="100" rx="92" ry="92" fill="none"
+             stroke="#E0CCBB" stroke-width="2"/>
+  </svg>`;
+}
+
+/* ---- line icons for the More grid ---- */
+export const ICON = {
+  entries:  '<path d="M4 5h16v15H4z"/><path d="M8 10h8M8 14h5"/>',
+  ready:    '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  visits:   '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="m9 15 2 2 4-4"/>',
+  pictures: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-4 4 3 3-2 4 3"/>',
+  updates:  '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.4A8 8 0 1 1 21 12z"/>',
+  local:    '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  flags:    '<path d="M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 16.6v.1"/>',
+  weight:   '<path d="M4 20h16"/><path d="M6 20 8 8h8l2 12"/><circle cx="12" cy="5" r="2"/>',
+  bump:     '<circle cx="12" cy="5" r="2.4"/><path d="M11 9c-2 0-3 2-3 4v8"/><path d="M11 9c3 0 5 2 5 5s-2 4-4 4"/>',
+  kicks:    '<path d="M8 20c-2 0-3-1.6-3-4 0-3 2-5 2-8a4 4 0 0 1 8 0c0 4-3 5-3 8 0 2.4-2 4-4 4z"/><circle cx="16" cy="7" r="1"/><circle cx="18" cy="10" r="1"/>',
+  names:    '<path d="M3 11V5a2 2 0 0 1 2-2h6l9 9-8 8-9-9z"/><circle cx="8" cy="8" r="1.4"/>',
+  bag:      '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M12 12v4"/>',
+  registry: '<rect x="3" y="9" width="18" height="11" rx="1.5"/><path d="M3 9h18M12 9v11"/><path d="M12 9S9 3 6.5 4.5 9 9 12 9zM12 9s3-6 5.5-4.5S15 9 12 9z"/>',
+  timer:    '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/>',
+  plan:     '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>',
+  food:     '<path d="M5 3v8a3 3 0 0 0 6 0V3"/><path d="M8 11v10"/><path d="M17 3c-1.5 2-2 4-2 6s.5 3 2 3 2-1 2-3-.5-4-2-6z"/><path d="M17 12v9"/>'
+};
+
+export function icon(name, px = 26) {
+  return `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none"
+    stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+    stroke-linejoin="round" aria-hidden="true">${ICON[name] || ""}</svg>`;
+}

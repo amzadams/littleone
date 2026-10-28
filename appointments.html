@@ -153,9 +153,24 @@ onSnapshot(q, snap => {
     });
     p.querySelectorAll("[data-del]").forEach(b => {
       b.onclick = async () => {
+        if (!confirm("Remove this question?")) return;
         const arr = [...(data.questions || [])];
         arr.splice(Number(b.dataset.del), 1);
         await updateDoc(doc(db, "appointments", id), { questions: arr });
+        toast("Removed");
+      };
+    });
+
+    p.querySelectorAll("[data-edq]").forEach(b => {
+      b.onclick = async () => {
+        const i = Number(b.dataset.edq);
+        const arr = [...(data.questions || [])];
+        const next = prompt("Edit the question:", arr[i]);
+        if (next === null) return;
+        if (!next.trim()) return;
+        arr[i] = next.trim();
+        await updateDoc(doc(db, "appointments", id), { questions: arr });
+        toast("Updated");
       };
     });
     p.querySelector(".nsave").onclick = async () => {

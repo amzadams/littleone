@@ -49,9 +49,23 @@
       <button data-k="other" aria-pressed="false">Other</button>
     </div>
     <input type="text" id="cap" placeholder="Caption, optional">
-    <label class="fl" for="file">Choose a picture</label>
-    <input type="file" id="file" accept="image/*">
-    <button class="btn wide" id="up" style="margin-top:.8rem">Upload</button>
+
+    <div style="display:flex;gap:.5rem">
+      <div style="flex:1.4">
+        <label class="fl" for="dt">Date it was taken</label>
+        <input type="date" id="dt">
+      </div>
+      <div style="flex:1">
+        <label class="fl" for="wk">Week</label>
+        <input type="number" id="wk" min="1" max="42">
+      </div>
+    </div>
+    <p class="faint" id="wkNote" style="margin:.35rem 0 0"></p>
+
+    <label class="fl" for="file">Pictures, you can pick several</label>
+    <input type="file" id="file" accept="image/*" multiple>
+
+    <button class="btn wide" id="up" style="margin-top:.8rem">Save pictures</button>
     <p class="faint" id="prog" style="margin:.6rem 0 0"></p>
   </section>
 
@@ -67,7 +81,7 @@
 <script type="module">
 import { requireAuth, drawNav, drawTop, SETUP, db, collection, addDoc,
          doc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp,
-         putFile, removeFile, getProfile, progress,
+         putFile, removeFile, getProfile, progress, prettyDate, dayKey,
          toast, esc, myName, isAdmin } from "./app.js";
 
 await requireAuth();
@@ -75,8 +89,34 @@ drawTop(SETUP.herName);
 drawNav("more.html");
 document.getElementById("main").hidden = false;
 
-const p = progress((await getProfile()).dueDate);
+const prof = await getProfile();
+const dueDate = prof.dueDate || SETUP.dueDate;
+const p = progress(dueDate);
+const todayKey = dayKey();
 let kind = "scan";
+
+/* work out which week a given date fell in */
+function weekFor(day) {
+  const due = new Date(dueDate + "T00:00:00");
+  const d = new Date(day + "T00:00:00");
+  return Math.floor((280 - Math.round((due - d) / 86400000)) / 7);
+}
+
+const dtBox = document.getElementById("dt");
+const wkBox = document.getElementById("wk");
+dtBox.value = todayKey;
+dtBox.max = todayKey;
+wkBox.value = p.week;
+
+function syncWeek() {
+  if (!dtBox.value) return;
+  wkBox.value = weekFor(dtBox.value);
+  document.getElementById("wkNote").textContent =
+    dtBox.value === todayKey ? ""
+      : "Taken " + prettyDate(dtBox.value) + ", week " + wkBox.value +
+        ". Change the week if that is not right.";
+}
+dtBox.addEventListener("change", syncWeek);
 
 document.getElementById("kinds").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
@@ -86,27 +126,39 @@ document.getElementById("kinds").addEventListener("click", e => {
 });
 
 document.getElementById("up").onclick = async () => {
-  const f = document.getElementById("file").files[0];
-  if (!f) { toast("Pick a picture first"); return; }
+  const files = [...document.getElementById("file").files];
+  if (!files.length) { toast("Pick a picture first"); return; }
 
   const btn = document.getElementById("up");
+  const prog = document.getElementById("prog");
   btn.disabled = true;
-  document.getElementById("prog").textContent = "Shrinking the picture";
 
-  try {
-    const saved = await putFile(f);
-    await addDoc(collection(db, "photos"), {
-      url: saved.url, path: saved.path, kind,
-      caption: document.getElementById("cap").value.trim(),
-      week: p.week, by: myName(), createdAt: serverTimestamp()
-    });
-    document.getElementById("file").value = "";
-    document.getElementById("cap").value = "";
-    document.getElementById("prog").textContent = "";
-    toast("Saved");
-  } catch (err) {
-    document.getElementById("prog").textContent = err.message || "Could not save that.";
+  const day = dtBox.value || todayKey;
+  const week = Number(wkBox.value) || weekFor(day);
+  const caption = document.getElementById("cap").value.trim();
+  let ok = 0, failed = [];
+
+  for (let i = 0; i < files.length; i++) {
+    prog.textContent = files.length > 1
+      ? "Saving " + (i + 1) + " of " + files.length
+      : "Shrinking the picture";
+    try {
+      const saved = await putFile(files[i]);
+      await addDoc(collection(db, "photos"), {
+        url: saved.url, path: saved.path, kind,
+        caption: caption + (files.length > 1 && caption ? " " + (i + 1) : ""),
+        day, week, by: myName(), createdAt: serverTimestamp()
+      });
+      ok++;
+    } catch (err) {
+      failed.push(files[i].name + ": " + (err.message || "failed"));
+    }
   }
+
+  document.getElementById("file").value = "";
+  document.getElementById("cap").value = "";
+  prog.textContent = failed.length ? failed.join("  ") : "";
+  if (ok) toast(ok === 1 ? "Saved" : ok + " pictures saved");
   btn.disabled = false;
 };
 
@@ -135,7 +187,8 @@ onSnapshot(q, snap => {
     const cap = x.caption || (x.kind === "scan" ? "Scan" : x.kind === "bump" ? "Bump" : "");
     return `<figure class="shot" data-id="${d.id}" style="margin:0">
       <img src="${esc(x.url)}" alt="${esc(cap)}" loading="lazy">
-      <figcaption class="cap">${esc(cap)}${x.week ? " &middot; week " + x.week : ""}</figcaption>
+      <figcaption class="cap">${esc(cap)}${x.week ? " &middot; week " + x.week : ""}${
+        x.day ? "<br>" + esc(prettyDate(x.day)) : ""}</figcaption>
     </figure>`;
   }).join("");
 

@@ -12,59 +12,127 @@
 <link rel="stylesheet" href="style.css">
 <script src="data.js"></script>
 <style>
-  .greet { text-align:center; padding:.4rem 0 .2rem; }
-  .greet .hi { font-size:.9rem; color:var(--ink-soft); }
-  .greet .nm { font-family:var(--serif); font-size:2.2rem; line-height:1.1; margin:0; }
-  .ring-art { position:absolute; inset:0; display:grid; place-items:center; }
-  .ring-art svg { width:68%; height:68%; }
-  .wk-line { font-family:var(--serif); font-size:1.6rem; margin:.9rem 0 .1rem; }
-  .size-cap { color:var(--ink-soft); font-size:.98rem; margin:0; }
+  /* ---- the hero that collapses away on scroll ---- */
+  .hero {
+    position: relative;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: var(--hero);
+    margin-bottom: .9rem;
+    box-shadow: var(--lift);
+  }
+  .hero .art { display: block; width: 100%; aspect-ratio: 1; }
+  .hero .art svg { display: block; width: 100%; height: 100%; }
+  .hero .art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .hero .cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: .8rem; padding: 2.6rem 1.1rem 1rem;
+    background: linear-gradient(transparent, rgba(60,42,30,.42));
+  }
+  .hero .day {
+    font-family: var(--serif); font-size: 2rem; line-height: 1;
+    color: #fff; margin: 0;
+  }
+  .hero .day small { display: block; font-family: var(--sans);
+    font-size: .74rem; opacity: .9; margin-top: .3rem; letter-spacing: .02em; }
+  .hero .open {
+    background: rgba(255,255,255,.93); color: var(--ink);
+    border-radius: 999px; padding: .5rem 1rem; font-size: .88rem;
+    text-decoration: none; white-space: nowrap;
+  }
+
+  .greet { padding: .2rem 0 .7rem; }
+  .greet .hi { font-size: .88rem; color: var(--ink-soft); margin: 0; }
+  .greet .nm { font-family: var(--serif); font-size: 2rem; line-height: 1.1; margin: .05rem 0 0; }
+
+  /* ---- the compact bar that takes over once you scroll ---- */
+  .minibar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: env(safe-area-inset-top, 0px) 0 0;
+    transform: translateY(-110%);
+    transition: transform .22s ease;
+  }
+  .minibar.on { transform: translateY(0); }
+  .minibar .inner {
+    max-width: var(--wrap); margin: 0 auto;
+    display: flex; align-items: center; gap: .7rem;
+    padding: .5rem 1.1rem;
+  }
+  .minibar .pip {
+    width: 34px; height: 34px; border-radius: 50%;
+    overflow: hidden; flex: none; background: var(--hero);
+  }
+  .minibar .pip svg { width: 100%; height: 100%; display: block; }
+  .minibar .t { font-family: var(--serif); font-size: 1.02rem; line-height: 1.1; }
+  .minibar .s { font-size: .74rem; color: var(--ink-faint); }
+  .minibar .track { margin-left: auto; width: 86px; }
+  .minibar .track .bar { height: 5px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .minibar .track .bar i { display: block; height: 100%; background: var(--sage); }
+
+  .wk-strip {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: .7rem; margin-bottom: .3rem;
+  }
+  .wk-strip .big { font-family: var(--serif); font-size: 1.55rem; }
+  .wk-strip .right { font-size: .82rem; color: var(--ink-faint); text-align: right; }
+  .prog { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin: .55rem 0 .2rem; }
+  .prog i { display: block; height: 100%; background: var(--sage); }
 </style>
 </head>
 <body>
 
+<div class="minibar" id="minibar">
+  <div class="inner">
+    <span class="pip" id="pip"></span>
+    <span>
+      <span class="t" id="mbWeek"></span><br>
+      <span class="s" id="mbDays"></span>
+    </span>
+    <span class="track"><span class="bar"><i id="mbBar"></i></span></span>
+  </div>
+</div>
+
 <main class="wrap" id="main" hidden>
 
-  <section class="greet">
-    <p class="hi" id="hi"></p>
-    <p class="nm" id="nm"></p>
-  </section>
+  <!-- everything in here folds away as she scrolls -->
+  <div id="collapsible">
+    <section class="greet">
+      <p class="hi" id="hi"></p>
+      <p class="nm" id="nm"></p>
+    </section>
 
-  <section class="ring-panel">
-    <div class="ring-holder">
-      <svg viewBox="0 0 236 236" aria-hidden="true" id="ring"></svg>
-      <div class="ring-art" id="ringArt"></div>
+    <section class="hero">
+      <span class="art" id="art"></span>
+      <div class="cap">
+        <p class="day" id="dayNum">
+          <span id="dayBig"></span>
+          <small id="daySmall"></small>
+        </p>
+        <a class="open" href="week.html">Open</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="wk-strip">
+        <span class="big" id="wkBig"></span>
+        <span class="right" id="wkRight"></span>
+      </div>
+      <div class="prog"><i id="progBar"></i></div>
+      <p class="muted" id="babyText" style="margin:.8rem 0 .4rem"></p>
+      <p class="muted" id="momText" style="margin:0 0 .4rem"></p>
+      <p class="muted" id="tipText" style="margin:0"></p>
+    </section>
+  </div>
+
+  <!-- what she actually comes back for -->
+  <section>
+    <div class="panel-head" style="padding:0 .2rem">
+      <h2>Latest</h2>
+      <a href="updates.html">All updates</a>
     </div>
-    <p class="wk-line" id="wkLine"></p>
-    <p class="size-cap" id="sizeCap"></p>
-    <p class="countdown" id="countdown"></p>
-  </section>
-
-  <a class="alert-link" href="flags.html">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-         stroke-linecap="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/>
-    <path d="M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-    When to call the doctor straight away
-  </a>
-
-  <section class="panel">
-    <div class="panel-head">
-      <h2>This week</h2>
-      <a href="week.html">All weeks</a>
-    </div>
-    <p class="size-line" id="sizeLine"></p>
-    <p class="muted" id="babyText"></p>
-    <p class="muted" id="momText"></p>
-    <hr class="hr" style="margin:.9rem 0">
-    <p class="muted" id="tipText" style="margin:0"></p>
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <h2>Today</h2>
-      <a href="log.html">Open log</a>
-    </div>
-    <div id="todaySummary" class="muted">Loading</div>
+    <div id="feed"></div>
   </section>
 
   <section class="panel">
@@ -75,71 +143,138 @@
     <div id="nextAppt" class="muted">Loading</div>
   </section>
 
-  <section>
-    <div class="panel-head" style="padding:0 .2rem">
-      <h2>Latest</h2>
-      <a href="updates.html">All updates</a>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Today</h2>
+      <a href="log.html">Open log</a>
     </div>
-    <div id="feed"></div>
+    <div id="todaySummary" class="muted">Loading</div>
   </section>
+
+  <a class="alert-link" href="flags.html" style="margin-bottom:1.5rem">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/>
+    <path d="M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    When to call the doctor straight away
+  </a>
 
 </main>
 
 <script type="module">
 import { requireAuth, drawNav, drawTop, getProfile, progress, prettyDate,
          SETUP, db, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
-         dayKey, esc, timeAgo, watchUpdatesForNotices } from "./app.js";
-import { sizeArt } from "./illus.js";
+         dayKey, esc, timeAgo, watchUpdatesForNotices, askNotify, notify } from "./app.js";
+import { babyArt } from "./illus.js";
 
 await requireAuth();
-drawTop(SETUP.herName);
+drawTop("");
 drawNav("index.html");
 document.getElementById("main").hidden = false;
 
 const profile = await getProfile();
 const p = progress(profile.dueDate);
 
-/* ---- the ring: 40 segments, one per week ---- */
-const R = 100, CX = 118, CY = 118;
-const C = 2 * Math.PI * R;
-const per = C / 40;
-const seg = per - 4.2;
-let out = "";
-for (let i = 0; i < 40; i++) {
-  const wk = i + 1;
-  const cls = wk < p.week ? "done" : wk === p.week ? "now" : "";
-  out += `<circle class="ring-seg ${cls}" cx="${CX}" cy="${CY}" r="${R}"
-            stroke-dasharray="${seg} ${C - seg}"
-            stroke-dashoffset="${-i * per}"></circle>`;
-}
-document.getElementById("ring").innerHTML = out;
-
+/* ---- greeting ---- */
 const hour = new Date().getHours();
 document.getElementById("hi").textContent =
   "Good " + (hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening") + ",";
 document.getElementById("nm").textContent = SETUP.herName;
 
-document.getElementById("wkLine").textContent =
-  "Week " + p.week + (p.day ? " and " + p.day + (p.day === 1 ? " day" : " days") : "");
+/* ---- hero: an uploaded picture for this week, else the drawing ---- */
+const artBox = document.getElementById("art");
+artBox.innerHTML = babyArt(p.week, 600);
 
-const weeksLeft = Math.floor(p.daysLeft / 7);
-document.getElementById("countdown").innerHTML =
-  `<strong>${p.daysLeft}</strong> days to go, about ${weeksLeft} weeks<br>` +
-  `<span class="faint">Due ${prettyDate(p.due)} &middot; trimester ${p.trimester}</span>`;
+getDoc(doc(db, "weekart", String(p.week))).then(sn => {
+  if (!sn.exists()) return;
+  const a = sn.data();
+  artBox.innerHTML = `<img src="${esc(a.url)}" alt="The baby at week ${p.week}"
+    style="object-position:center ${esc(a.pos || "center")}">`;
+  document.getElementById("pip").innerHTML =
+    `<img src="${esc(a.url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+}).catch(() => {});
+document.getElementById("dayBig").textContent = "Day " + p.totalDays;
+document.getElementById("daySmall").textContent =
+  p.daysLeft + " days to go \u00b7 due " + prettyDate(p.due);
 
-/* ---- this week's content ---- */
+/* ---- this week ---- */
 const w = WEEKS[p.week] || WEEKS[40];
-document.getElementById("ringArt").innerHTML = sizeArt(w[0], 150);
-document.getElementById("sizeCap").textContent = "About the size of " + w[0] + ".";
-document.getElementById("sizeLine").textContent = "About the size of " + w[0] + ".";
+document.getElementById("wkBig").textContent =
+  "Week " + p.week + (p.day ? " and " + p.day + (p.day === 1 ? " day" : " days") : "");
+document.getElementById("wkRight").innerHTML =
+  "trimester " + p.trimester + "<br>about the size of " + esc(w[0]);
+const pct = Math.round(p.totalDays / 280 * 100);
+document.getElementById("progBar").style.width = pct + "%";
 document.getElementById("babyText").textContent = w[1];
 document.getElementById("momText").textContent = w[2];
 document.getElementById("tipText").textContent = w[3];
 
-/* ---- today's log summary ---- */
+/* ---- the compact bar ---- */
+document.getElementById("pip").innerHTML = babyArt(p.week, 80);
+document.getElementById("mbWeek").textContent = "Week " + p.week;
+document.getElementById("mbDays").textContent = p.daysLeft + " days to go";
+document.getElementById("mbBar").style.width = pct + "%";
+
+const mb = document.getElementById("minibar");
+let ticking = false;
+addEventListener("scroll", () => {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(() => {
+    mb.classList.toggle("on", scrollY > 150);
+    ticking = false;
+  });
+}, { passive: true });
+
+/* ---- latest updates, now the first thing under the fold ---- */
+onSnapshot(query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(3)), s => {
+  const f = document.getElementById("feed");
+  if (s.empty) {
+    f.innerHTML = `<p class="empty">Nothing posted yet.
+      <a href="updates.html">Write the first one</a></p>`;
+    return;
+  }
+  f.innerHTML = s.docs.map(sd => {
+    const d = sd.data();
+    return `<article class="card ${d.side === "him" ? "from-him" : ""}">
+      <div class="meta">${esc(d.author)} &middot; ${timeAgo(d.createdAt)}</div>
+      <div class="body ${d.kind === "note" ? "note" : ""}">${esc(d.text)}</div>
+    </article>`;
+  }).join("");
+});
+
+/* ---- next visit, with a nudge when it is close ---- */
+onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
+  const now = dayKey();
+  const next = s.docs.map(d => d.data()).find(a => a.date >= now);
+  const n = document.getElementById("nextAppt");
+  if (!next) { n.innerHTML = `None booked. <a href="appointments.html">Add one</a>`; return; }
+  const days = Math.round((new Date(next.date + "T00:00:00") -
+                           new Date(now + "T00:00:00")) / 86400000);
+  const soon = days <= 1;
+  n.innerHTML = `<span style="font-family:var(--serif);font-size:1.15rem;color:var(--ink)">
+      ${esc(next.title || "Checkup")}</span><br>
+    ${prettyDate(next.date)}${next.time ? " at " + esc(next.time) : ""}<br>
+    <span class="${soon ? "" : "faint"}" ${soon ? 'style="color:var(--rose)"' : ""}>
+      ${days === 0 ? "Today" : days === 1 ? "Tomorrow" : "in " + days + " days"}
+      ${next.place ? " &middot; " + esc(next.place) : ""}</span>`;
+
+  if (soon) remind(next, days);
+});
+
+/* one reminder per visit per device, fired when the site is opened */
+async function remind(appt, days) {
+  const key = "littleone.reminded." + appt.date + (appt.time || "");
+  if (localStorage.getItem(key)) return;
+  if (!(await askNotify())) return;
+  localStorage.setItem(key, "1");
+  notify(days === 0 ? "Visit today" : "Visit tomorrow",
+    (appt.title || "Checkup") + (appt.time ? " at " + appt.time : "") +
+    (appt.place ? ", " + appt.place : ""));
+}
+
+/* ---- today ---- */
 const key = dayKey();
 const box = document.getElementById("todaySummary");
-
 onSnapshot(query(collection(db, "entries"), orderBy("at", "desc"), limit(200)), async s => {
   const n = s.docs.filter(d => d.data().day === key).length;
   const snap = await getDoc(doc(db, "logs", key));
@@ -155,35 +290,6 @@ onSnapshot(query(collection(db, "entries"), orderBy("at", "desc"), limit(200)), 
   box.innerHTML = bits.length
     ? esc(bits.join(", "))
     : `Nothing logged yet today. <a href="log.html">Start</a>`;
-});
-
-/* ---- next appointment ---- */
-const qa = query(collection(db, "appointments"), orderBy("date", "asc"));
-onSnapshot(qa, s => {
-  const now = dayKey();
-  const next = s.docs.map(d => d.data()).find(a => a.date >= now);
-  const n = document.getElementById("nextAppt");
-  if (!next) { n.innerHTML = `None booked. <a href="appointments.html">Add one</a>`; return; }
-  const days = Math.round((new Date(next.date + "T00:00:00") - new Date(now + "T00:00:00")) / 86400000);
-  n.innerHTML = `<span style="font-family:var(--serif);font-size:1.15rem;color:var(--ink)">
-      ${esc(next.title || "Checkup")}</span><br>
-    ${prettyDate(next.date)}${next.time ? " at " + esc(next.time) : ""}<br>
-    <span class="faint">${days === 0 ? "Today" : days === 1 ? "Tomorrow" : "in " + days + " days"}
-    ${next.place ? " &middot; " + esc(next.place) : ""}</span>`;
-});
-
-/* ---- latest two updates ---- */
-const qu = query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(2));
-onSnapshot(qu, s => {
-  const f = document.getElementById("feed");
-  if (s.empty) { f.innerHTML = `<p class="empty">Nothing posted yet.</p>`; return; }
-  f.innerHTML = s.docs.map(snapDoc => {
-    const d = snapDoc.data();
-    return `<article class="card ${d.side === "him" ? "from-him" : ""}">
-      <div class="meta">${esc(d.author)} &middot; ${timeAgo(d.createdAt)}</div>
-      <div class="body ${d.kind === "note" ? "note" : ""}">${esc(d.text)}</div>
-    </article>`;
-  }).join("");
 });
 
 watchUpdatesForNotices();

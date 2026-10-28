@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hospital bag</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .seg { margin-bottom: 1.3rem; }
+  .seg h2 { margin: 0 0 .2rem; }
+  .bagrow { display: grid; grid-template-columns: 1fr auto; gap: .6rem;
+    align-items: center; padding: .72rem 0; border-bottom: 1px solid var(--line); }
+  .bagrow.done .t { color: var(--ink-faint); text-decoration: line-through; }
+  .bagrow .t { font-size: .97rem; }
+  .bagrow .s { font-size: .81rem; color: var(--ink-soft); margin-top: .12rem; }
+  .bar { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--sage); }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Hospital bag</h1>
+  <p class="faint" style="margin-top:-.3rem" id="when"></p>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Packed</h2><span class="faint" id="pct"></span></div>
+    <div class="bar"><i id="fill"></i></div>
+    <p class="faint" style="margin:.7rem 0 0">
+      These tick the same boxes as Getting ready, so you only count them once.
+    </p>
+  </section>
+
+  <div id="list"></div>
+
+  <section class="panel" style="margin-bottom:1.6rem">
+    <h2>Do not forget</h2>
+    <p class="muted" style="margin:0">
+      The car seat has to be fitted in the car before you go. They will not discharge
+      you without it. Keep the bag by the door from week 36 and the car fuelled.
+    </p>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, setDoc, collection,
+         query, onSnapshot, getProfile, progress, toast, esc, myName } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+document.getElementById("when").textContent = p.week < 34
+  ? "Week " + p.week + ". Pack it around week 34, earlier if she wants it done."
+  : "Week " + p.week + ". This should be packed and by the door.";
+
+const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const BAG = GEAR.filter(g => g[0].startsWith("Hospital bag"));
+const SEGS = [...new Set(BAG.map(g => g[0]))];
+let STATE = {};
+
+const tick = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+  stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>`;
+
+function paint() {
+  const done = BAG.filter(g => STATE[slug(g[1])]?.done).length;
+  document.getElementById("pct").textContent = done + " of " + BAG.length;
+  document.getElementById("fill").style.width = Math.round(done / BAG.length * 100) + "%";
+
+  document.getElementById("list").innerHTML = SEGS.map(sg => {
+    const items = BAG.filter(g => g[0] === sg);
+    const got = items.filter(g => STATE[slug(g[1])]?.done).length;
+    return `<section class="panel seg">
+      <div class="panel-head"><h2>${esc(sg.replace("Hospital bag, ", ""))}</h2>
+        <span class="faint">${got} of ${items.length}</span></div>
+      <div class="rows">${items.map(g => {
+        const id = slug(g[1]), st = STATE[id] || {};
+        return `<div class="bagrow ${st.done ? "done" : ""}">
+          <div><div class="t">${esc(g[1])}</div><div class="s">${esc(g[3])}</div></div>
+          <button class="check" data-tick="${id}" aria-pressed="${st.done ? "true" : "false"}"
+            aria-label="${esc(g[1])}">${tick}</button>
+        </div>`;
+      }).join("")}</div>
+    </section>`;
+  }).join("");
+}
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-tick]"); if (!b) return;
+  const id = b.dataset.tick;
+  STATE[id] = Object.assign({}, STATE[id], { done: !(STATE[id]?.done), by: myName() });
+  paint();
+  await setDoc(doc(db, "gear", id), STATE[id], { merge: true });
+});
+
+onSnapshot(query(collection(db, "gear")), s => {
+  STATE = {}; s.docs.forEach(d => STATE[d.id] = d.data());
+  paint();
+});
+paint();
+</script>
+</body>
+</html>

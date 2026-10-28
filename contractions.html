@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contractions</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .bigbtn { width: 100%; border: none; border-radius: var(--r-lg);
+    padding: 2.1rem 1rem; font-family: var(--serif); font-size: 1.7rem;
+    background: var(--sage); color: #fff; cursor: pointer; box-shadow: var(--lift); }
+  .bigbtn.stop { background: var(--rose); }
+  .readout { display: flex; gap: .8rem; margin-top: .9rem; }
+  .readout div { flex: 1; text-align: center; }
+  .readout .v { font-family: var(--serif); font-size: 1.5rem; }
+  .readout .k { font-size: .74rem; color: var(--ink-faint); }
+  .alert511 { background: var(--rose-soft); border: 1px solid #E6C5C9;
+    border-radius: var(--r-md); padding: .9rem 1rem; color: #7E333C;
+    font-size: .92rem; margin-top: .9rem; }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Contractions</h1>
+  <p class="faint" style="margin-top:-.3rem" id="intro"></p>
+
+  <section class="panel">
+    <button class="bigbtn" id="go">Start a contraction</button>
+    <div class="readout">
+      <div><div class="v" id="lastLen">&mdash;</div><div class="k">last lasted</div></div>
+      <div><div class="v" id="gap">&mdash;</div><div class="k">apart</div></div>
+      <div><div class="v" id="hour">0</div><div class="k">in the last hour</div></div>
+    </div>
+    <div id="alert"></div>
+  </section>
+
+  <section class="panel">
+    <h2>The 5-1-1 guide</h2>
+    <p class="muted" style="margin:0">
+      The usual signal to call is contractions about five minutes apart, each lasting
+      around one minute, keeping that up for one hour. For a first baby most clinics
+      want you to wait for that pattern rather than coming in at the first twinge.
+    </p>
+    <p class="muted" style="margin:.7rem 0 0">
+      Call straight away whatever the timer says if her waters break, if there is
+      bleeding, if the pain is constant rather than coming in waves, or if the baby's
+      movement drops off.
+    </p>
+    <a class="btn wide" id="call" style="margin-top:.9rem;background:var(--rose)">Call the clinic</a>
+  </section>
+
+  <section class="panel" style="margin-bottom:1.6rem">
+    <div class="panel-head"><h2>Timed so far</h2>
+      <button class="btn ghost" id="clear" style="padding:.35rem .7rem;font-size:.78rem">Clear</button></div>
+    <div class="rows" id="rows"></div>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, deleteDoc, collection,
+         addDoc, query, orderBy, limit, onSnapshot, dayKey,
+         toast, myName, getProfile, progress } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+document.getElementById("intro").textContent = p.week < 37
+  ? "Week " + p.week + ". Practice tightenings are normal. Real ones come in a steady pattern."
+  : "Week " + p.week + ". Time them and watch for the pattern.";
+document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+
+let running = null, ROWS = [];
+const mmss = ms => {
+  const s = Math.round(ms / 1000);
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+};
+
+document.getElementById("go").onclick = async () => {
+  const btn = document.getElementById("go");
+  if (!running) {
+    running = Date.now();
+    btn.textContent = "Stop";
+    btn.classList.add("stop");
+    if (navigator.vibrate) navigator.vibrate(25);
+    return;
+  }
+  const started = running, ended = Date.now();
+  running = null;
+  btn.textContent = "Start a contraction";
+  btn.classList.remove("stop");
+  await addDoc(collection(db, "contractions"), {
+    day: dayKey(), startedAt: started, endedAt: ended,
+    length: ended - started, by: myName()
+  });
+};
+
+document.getElementById("clear").onclick = async () => {
+  if (!confirm("Clear everything timed so far?")) return;
+  for (const r of ROWS) await deleteDoc(doc(db, "contractions", r.id));
+  toast("Cleared");
+};
+
+function paint() {
+  const sorted = ROWS.slice().sort((a, b) => a.d.startedAt - b.d.startedAt);
+  const last = sorted[sorted.length - 1];
+  document.getElementById("lastLen").textContent = last ? mmss(last.d.length) : "\u2014";
+
+  const gaps = [];
+  for (let i = 1; i < sorted.length; i++)
+    gaps.push(sorted[i].d.startedAt - sorted[i - 1].d.startedAt);
+  const lastGap = gaps[gaps.length - 1];
+  document.getElementById("gap").textContent = lastGap ? mmss(lastGap) : "\u2014";
+
+  const hourAgo = Date.now() - 3600000;
+  const recent = sorted.filter(r => r.d.startedAt > hourAgo);
+  document.getElementById("hour").textContent = recent.length;
+
+  /* 5-1-1 */
+  const recentGaps = [];
+  for (let i = 1; i < recent.length; i++)
+    recentGaps.push(recent[i].d.startedAt - recent[i - 1].d.startedAt);
+  const avgGap = recentGaps.length
+    ? recentGaps.reduce((a, b) => a + b, 0) / recentGaps.length : Infinity;
+  const avgLen = recent.length
+    ? recent.reduce((a, r) => a + r.d.length, 0) / recent.length : 0;
+  const spanOk = recent.length > 1 &&
+    (recent[recent.length - 1].d.startedAt - recent[0].d.startedAt) >= 55 * 60000;
+
+  document.getElementById("alert").innerHTML =
+    (avgGap <= 5.5 * 60000 && avgLen >= 45000 && spanOk)
+      ? `<div class="alert511">That is the 5-1-1 pattern. About ${
+          Math.round(avgGap / 60000)} minutes apart, around ${
+          Math.round(avgLen / 1000)} seconds each, for an hour. Call the clinic now.</div>`
+      : "";
+
+  document.getElementById("rows").innerHTML = sorted.length
+    ? sorted.slice().reverse().map((r, i, arr) => {
+      const prev = arr[i + 1];
+      const g = prev ? r.d.startedAt - prev.d.startedAt : null;
+      const t = new Date(r.d.startedAt);
+      return `<div class="row"><div class="row-main">
+        <div class="t">${mmss(r.d.length)} long${g ? ", " + mmss(g) + " after the one before" : ""}</div>
+        <div class="s">${String(t.getHours()).padStart(2, "0")}:${
+          String(t.getMinutes()).padStart(2, "0")}:${String(t.getSeconds()).padStart(2, "0")}</div>
+      </div></div>`;
+    }).join("")
+    : `<p class="empty">Nothing timed yet.</p>`;
+}
+
+setInterval(paint, 20000);
+
+onSnapshot(query(collection(db, "contractions"), orderBy("startedAt", "desc"), limit(60)), s => {
+  ROWS = s.docs.map(d => ({ id: d.id, d: d.data() }));
+  paint();
+});
+</script>
+</body>
+</html>

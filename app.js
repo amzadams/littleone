@@ -31,7 +31,7 @@ export const SETUP = {
   demo: false,                 // false means it now uses Firebase for real
   useCloudStorage: false,      // stays off the Blaze plan, pictures only
   stayLoggedIn: true,          // keeps the sign in across browser restarts
-  lockAfterHours: 6,           // signs out after this many hours untouched. 0 turns it off
+  lockAfterHours: 24,          // signs out after a day untouched. 0 turns it off
 
   dueDate: "2027-04-17",       // change this in Settings after the scan
   herName: "Hali",
@@ -39,7 +39,7 @@ export const SETUP = {
 
   herEmail: "halima@littleone.app",   // the account she signs in with
 
-  clinicName: "Altru Clinic",
+  clinicName: "Altru Health System",
   clinicPhone: "+17017805000"
 };
 

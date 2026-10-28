@@ -1,16 +1,20 @@
 /* ---- tokens ---- */
 :root {
-  --ink: #1C2B23;
-  --ink-soft: #4A5B51;
-  --ink-faint: #8A998F;
+  --ink: #18261F;
+  --ink-soft: #3E5047;        /* darker than before, easier to read */
+  --ink-faint: #6E7F75;       /* was too pale */
   --paper: #EEF1EA;
-  --panel: #F8FAF6;
+  --panel: #FBFCF9;
   --line: #D6DCD2;
-  --gold: #B8893B;
+  --gold: #A9762C;
   --gold-soft: #EADCC2;
-  --rose: #B5636C;
+  --rose: #A9535D;
   --rose-soft: #F3DFE1;
-  --sage: #6E8B74;
+  --sage: #5C7A63;
+  --accent: #5C7A63;
+  --tint: #E6EBE2;            /* tile headers */
+  --hero: #EFD9C6;            /* behind the baby drawing */
+  --lift: 0 1px 2px rgba(24,38,31,.05), 0 6px 16px rgba(24,38,31,.045);
 
   --r-sm: 4px;
   --r-md: 10px;
@@ -154,6 +158,7 @@ a { color: var(--ink); }
   border-radius: var(--r-lg);
   padding: 1.1rem 1.15rem;
   margin-bottom: 1rem;
+  box-shadow: var(--lift);
 }
 .panel-head {
   display: flex;
@@ -163,7 +168,7 @@ a { color: var(--ink); }
   margin-bottom: .6rem;
 }
 .panel-head h2 { margin: 0; }
-.panel-head a { font-size: .8rem; color: var(--sage); }
+.panel-head a { font-size: .8rem; color: var(--accent); font-weight: 500; }
 
 .size-line {
   font-family: var(--serif);
@@ -171,8 +176,8 @@ a { color: var(--ink); }
   color: var(--ink);
   margin-bottom: .5rem;
 }
-.muted { color: var(--ink-soft); font-size: .92rem; }
-.faint { color: var(--ink-faint); font-size: .8rem; }
+.muted { color: var(--ink-soft); font-size: .93rem; }
+.faint { color: var(--ink-faint); font-size: .81rem; }
 
 /* ---- list rows ---- */
 .rows { border-top: 1px solid var(--line); }
@@ -244,6 +249,9 @@ a { color: var(--ink); }
   text-align: center;
 }
 
+input, select, textarea { transition: border-color .14s ease; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
 input[type="text"], input[type="date"], input[type="time"],
 input[type="number"], input[type="email"], input[type="password"],
 input[type="search"], textarea, select {
@@ -261,6 +269,7 @@ label.fl { display: block; font-size: .8rem; color: var(--ink-soft); margin: .7r
 
 .btn {
   display: inline-block;
+  box-shadow: var(--lift);
   font-family: var(--sans);
   font-size: .92rem;
   border: none;
@@ -273,6 +282,7 @@ label.fl { display: block; font-size: .8rem; color: var(--ink-soft); margin: .7r
 }
 .btn.ghost {
   background: transparent;
+  box-shadow: none;
   color: var(--ink);
   border: 1px solid var(--line);
 }
@@ -289,6 +299,7 @@ label.fl { display: block; font-size: .8rem; color: var(--ink-soft); margin: .7r
   border-radius: var(--r-md);
   padding: .85rem .95rem;
   margin-bottom: .7rem;
+  box-shadow: var(--lift);
 }
 .card.from-him { border-left-color: var(--gold); }
 .card .meta {
@@ -380,6 +391,7 @@ label.fl { display: block; font-size: .8rem; color: var(--ink-soft); margin: .7r
 
 @media (min-width: 720px) {
   body { padding-bottom: 2rem; }
+  .tiles { grid-template-columns: repeat(3, 1fr) !important; }
   .topbar { order: 1; }
   .tabs   { order: 2; }
   body > main { order: 3; }

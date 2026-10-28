@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kick counter</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .kickpad {
+    width: 100%; aspect-ratio: 1.6; border-radius: var(--r-lg);
+    border: 2px dashed var(--line); background: var(--panel);
+    display: grid; place-items: center; cursor: pointer;
+    font-family: var(--serif); color: var(--ink);
+    box-shadow: var(--lift); user-select: none;
+  }
+  .kickpad.live { border-style: solid; border-color: var(--sage); background: #EDF2EC; }
+  .kickpad .n { font-size: 3.4rem; line-height: 1; }
+  .kickpad .l { font-size: .9rem; color: var(--ink-soft); font-family: var(--sans); margin-top: .3rem; }
+  .pips { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: center; margin-top: .8rem; }
+  .pips span { width: 13px; height: 13px; border-radius: 50%; background: var(--line); }
+  .pips span.on { background: var(--sage); }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Kick counter</h1>
+  <p class="faint" style="margin-top:-.3rem" id="intro"></p>
+
+  <section class="panel">
+    <div class="kickpad" id="pad">
+      <div style="text-align:center">
+        <div class="n" id="n">0</div>
+        <div class="l" id="l">Tap each time you feel a movement</div>
+      </div>
+    </div>
+    <div class="pips" id="pips"></div>
+    <p class="muted" id="elapsed" style="text-align:center;margin:.9rem 0 0"></p>
+    <div style="display:flex;gap:.5rem;margin-top:.8rem">
+      <button class="btn ghost" id="save" style="flex:1" disabled>Save this session</button>
+      <button class="btn ghost" id="reset" style="flex:0 0 auto">Reset</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>How this works</h2>
+    <p class="muted" style="margin:0">
+      From around week 28, pick a time of day when she is usually active, often after a meal
+      or in the evening, and count until ten movements. Kicks, rolls and jabs all count,
+      hiccups do not. Ten inside two hours is the usual reassurance.
+    </p>
+    <p class="muted" style="margin:.7rem 0 0">
+      What matters more than any number is a change from her own normal. If movement drops
+      off clearly, call the clinic the same day. Do not wait and see, and do not try cold
+      drinks or sugar to get the baby moving first.
+    </p>
+    <a class="btn wide" id="call" style="margin-top:.9rem;background:var(--rose)">Call the clinic</a>
+  </section>
+
+  <section class="panel" style="margin-bottom:1.6rem">
+    <div class="panel-head"><h2>Past sessions</h2><span class="faint" id="cnt"></span></div>
+    <div class="rows" id="rows"></div>
+  </section>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, deleteDoc, collection,
+         addDoc, query, orderBy, limit, onSnapshot, serverTimestamp,
+         dayKey, prettyDate, toast, myName, isAdmin, getProfile, progress } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const p = progress((await getProfile()).dueDate);
+document.getElementById("intro").textContent = p.week < 28
+  ? "Week " + p.week + ". This usually starts around week 28, but you can try it any time."
+  : "Week " + p.week + ". Counting to ten is the usual check.";
+
+document.getElementById("call").href = "tel:" + SETUP.clinicPhone.replace(/\s/g, "");
+
+let startAt = null, count = 0, tick = null;
+
+function paint() {
+  document.getElementById("n").textContent = count;
+  document.getElementById("pips").innerHTML =
+    Array.from({ length: 10 }, (_, i) => `<span class="${i < count ? "on" : ""}"></span>`).join("");
+  document.getElementById("save").disabled = count === 0;
+  document.getElementById("pad").classList.toggle("live", count > 0);
+  document.getElementById("l").textContent =
+    count === 0 ? "Tap each time you feel a movement"
+    : count >= 10 ? "Ten reached. Save it."
+    : "Tap again, " + (10 - count) + " to go";
+}
+
+function elapsed() {
+  if (!startAt) { document.getElementById("elapsed").textContent = ""; return; }
+  const mins = Math.floor((Date.now() - startAt) / 60000);
+  const h = Math.floor(mins / 60), m = mins % 60;
+  document.getElementById("elapsed").textContent =
+    "Started " + (h ? h + "h " : "") + m + " min ago";
+}
+
+document.getElementById("pad").onclick = () => {
+  if (count >= 10) return;
+  if (!startAt) { startAt = Date.now(); tick = setInterval(elapsed, 20000); }
+  count++;
+  paint(); elapsed();
+  if (navigator.vibrate) navigator.vibrate(18);
+};
+
+document.getElementById("reset").onclick = () => {
+  clearInterval(tick); startAt = null; count = 0; paint(); elapsed();
+};
+
+document.getElementById("save").onclick = async () => {
+  const mins = Math.round((Date.now() - startAt) / 60000);
+  await addDoc(collection(db, "kicks"), {
+    day: dayKey(), count, minutes: mins,
+    startedAt: startAt, by: myName(), createdAt: serverTimestamp()
+  });
+  clearInterval(tick); startAt = null; count = 0; paint(); elapsed();
+  toast("Saved");
+};
+
+paint();
+
+onSnapshot(query(collection(db, "kicks"), orderBy("startedAt", "desc"), limit(40)), s => {
+  document.getElementById("cnt").textContent = s.size ? s.size + " saved" : "";
+  document.getElementById("rows").innerHTML = s.empty
+    ? `<p class="empty">Nothing yet.</p>`
+    : s.docs.map(d => {
+      const k = d.data();
+      const t = new Date(k.startedAt);
+      return `<div class="row">
+        <div class="row-main">
+          <div class="t">${k.count} movements in ${k.minutes} min</div>
+          <div class="s">${prettyDate(k.day)} &middot; started ${
+            String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}</div>
+        </div>
+        ${isAdmin() ? `<button style="border:none;background:none;color:var(--ink-faint);
+          font-size:1.1rem;cursor:pointer" data-rm="${d.id}">&times;</button>` : ""}
+      </div>`;
+    }).join("");
+
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete this session?")) return;
+    await deleteDoc(doc(db, "kicks", b.dataset.rm));
+  });
+});
+</script>
+</body>
+</html>
