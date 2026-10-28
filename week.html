@@ -105,8 +105,9 @@ function show(w) {
   document.getElementById("wPhoto").innerHTML = a
     ? `<div style="border-radius:var(--r-md);overflow:hidden;aspect-ratio:1;margin-bottom:.9rem">
          <img src="${esc(a.url)}" alt="The baby at week ${w}"
-           style="width:100%;height:100%;object-fit:cover;object-position:center ${
-             esc(a.pos || "center")};display:block"></div>`
+           style="width:100%;height:100%;object-fit:cover;display:block;
+             transform:scale(${(a.crop && a.crop.zoom) || 1})
+             translate(${(a.crop && a.crop.x) || 0}%, ${(a.crop && a.crop.y) || 0}%)"></div>`
     : "";
   document.getElementById("wArt").innerHTML = sizeArt(d[0], a ? 96 : 140);
   document.getElementById("wSize").textContent = "About the size of " + d[0] + ".";

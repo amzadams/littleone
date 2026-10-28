@@ -25,7 +25,10 @@
 
 <main class="wrap" id="main" hidden>
   <h1>Visits</h1>
-  <p class="faint" style="margin-top:-.3rem">Add a visit, then build up the questions between now and then.</p>
+  <p class="faint" style="margin-top:-.3rem">
+    Add a visit, then build up the questions between now and then.
+    Tap Add to calendar and your phone will remind you the day before and two hours ahead.
+  </p>
 
   <section class="panel">
     <h2>Add a visit</h2>
@@ -82,11 +85,19 @@ function icsLink(a) {
   const t = (a.time || "09:00").replace(":", "") + "00";
   const end = String(Number((a.time || "09:00").slice(0, 2)) + 1).padStart(2, "0")
             + (a.time || "09:00").slice(3, 5) + "00";
+  const alarm = (trig, note) => [
+    "BEGIN:VALARM", "ACTION:DISPLAY",
+    "TRIGGER:" + trig, "DESCRIPTION:" + note, "END:VALARM"
+  ];
   const ics = [
-    "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Little One//EN",
+    "BEGIN:VEVENT",
+    "UID:" + d + t + "@littleone",
     "DTSTART:" + d + "T" + t, "DTEND:" + d + "T" + end,
     "SUMMARY:" + a.title, "LOCATION:" + (a.place || ""),
     "DESCRIPTION:" + (a.questions || []).join("; "),
+    ...alarm("-P1D", a.title + " tomorrow"),
+    ...alarm("-PT2H", a.title + " in 2 hours"),
     "END:VEVENT", "END:VCALENDAR"
   ].join("\r\n");
   return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);

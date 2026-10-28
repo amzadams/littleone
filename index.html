@@ -23,7 +23,8 @@
   }
   .hero .art { display: block; width: 100%; aspect-ratio: 1; }
   .hero .art svg { display: block; width: 100%; height: 100%; }
-  .hero .art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .hero .art { position: relative; overflow: hidden; }
+  .hero .art img { position: absolute; left: 50%; top: 50%; display: block; }
   .hero .cap {
     position: absolute; left: 0; right: 0; bottom: 0;
     display: flex; align-items: flex-end; justify-content: space-between;
@@ -187,10 +188,22 @@ artBox.innerHTML = babyArt(p.week, 600);
 getDoc(doc(db, "weekart", String(p.week))).then(sn => {
   if (!sn.exists()) return;
   const a = sn.data();
-  artBox.innerHTML = `<img src="${esc(a.url)}" alt="The baby at week ${p.week}"
-    style="object-position:center ${esc(a.pos || "center")}">`;
+  const c = a.crop || { zoom: 1, x: 0, y: 0 };
+  artBox.innerHTML = `<img src="${esc(a.url)}" alt="The baby at week ${p.week}">`;
+  const img = artBox.querySelector("img");
+  const place = () => {
+    const bw = artBox.clientWidth || 320, bh = artBox.clientHeight || bw;
+    const fill = Math.max(bw / (img.naturalWidth || 1), bh / (img.naturalHeight || 1)) * (c.zoom || 1);
+    img.style.width = (img.naturalWidth * fill) + "px";
+    img.style.height = (img.naturalHeight * fill) + "px";
+    img.style.transform = `translate(calc(-50% + ${c.x || 0}%), calc(-50% + ${c.y || 0}%))`;
+  };
+  if (img.complete) place(); else img.onload = place;
+  addEventListener("resize", place, { passive: true });
+
   document.getElementById("pip").innerHTML =
-    `<img src="${esc(a.url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+    `<img src="${esc(a.url)}" alt="" style="width:100%;height:100%;object-fit:cover;
+      transform:scale(${c.zoom || 1}) translate(${c.x || 0}%, ${c.y || 0}%)">`;
 }).catch(() => {});
 document.getElementById("dayBig").textContent = "Day " + p.totalDays;
 document.getElementById("daySmall").textContent =

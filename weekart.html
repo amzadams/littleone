@@ -32,16 +32,19 @@
 
   .preview { width: 100%; aspect-ratio: 1; border-radius: var(--r-lg);
     overflow: hidden; background: var(--hero); position: relative; }
-  .preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .preview img { position: absolute; left: 50%; top: 50%; display: block;
+                 transform-origin: center; will-change: transform; cursor: grab; }
+  .preview.dragging img { cursor: grabbing; }
+  .preview .hint { position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+    text-align: center; font-size: .72rem; color: #fff; padding: .45rem;
+    background: linear-gradient(rgba(24,38,31,.5), transparent); pointer-events: none; }
   .preview svg { width: 100%; height: 100%; display: block; }
   .preview .cap { position: absolute; left: 0; right: 0; bottom: 0;
     padding: 2.4rem .9rem .8rem; color: #fff; font-family: var(--serif);
     font-size: 1.5rem; background: linear-gradient(transparent, rgba(60,42,30,.45)); }
-  .pos { display: flex; gap: .4rem; margin-top: .6rem; }
-  .pos button { flex: 1; border: 1px solid var(--line); background: transparent;
-    color: var(--ink-soft); border-radius: var(--r-md); padding: .45rem 0;
-    font-family: var(--sans); font-size: .82rem; cursor: pointer; }
-  .pos button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  .zoomrow { display: flex; align-items: center; gap: .7rem; margin-top: .8rem; }
+  .zoomrow input[type=range] { flex: 1; accent-color: var(--sage); }
+  .zoomrow span { font-size: .78rem; color: var(--ink-faint); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -58,10 +61,10 @@
 
     <div class="preview" id="prev"></div>
 
-    <div class="pos" id="pos">
-      <button data-p="top">Show the top</button>
-      <button data-p="center" aria-pressed="true">Middle</button>
-      <button data-p="bottom">Show the bottom</button>
+    <div class="zoomrow">
+      <span>Zoom</span>
+      <input type="range" id="zoom" min="100" max="300" value="100" step="1">
+      <button class="btn ghost" id="recentre" style="padding:.35rem .7rem;font-size:.78rem">Centre</button>
     </div>
 
     <label class="fl" for="file">Pick a picture for this week</label>
@@ -71,8 +74,8 @@
       <button class="btn ghost" id="clear" style="flex:0 0 auto">Remove</button>
     </div>
     <p class="faint" id="prog" style="margin:.6rem 0 0">
-      It is shrunk to fit the card, so a big photo is fine. The card crops it for you,
-      use the three buttons to choose which part shows.
+      No need to crop it first. Drag the picture to move it and use the slider to zoom.
+      What you see in this square is exactly what the home card will show.
     </p>
   </section>
 
@@ -94,21 +97,95 @@ document.getElementById("main").hidden = false;
 
 const p = progress((await getProfile()).dueDate);
 const live = Math.min(40, Math.max(4, p.week));
-let sel = live, ART = {}, pos = "center", pending = null;
+let sel = live, ART = {}, pending = null;
+
+/* crop state: zoom plus a nudge left/right and up/down, in percent */
+let crop = { zoom: 1, x: 0, y: 0 };
+
+/* Lay the picture out so it fills the square, then apply the crop.
+   The same maths runs on the home page, so what you see here is what lands there. */
+export function layout(img, box, c) {
+  const bw = box.clientWidth || 320, bh = box.clientHeight || bw;
+  const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+  const fill = Math.max(bw / iw, bh / ih) * (c.zoom || 1);
+  img.style.width = (iw * fill) + "px";
+  img.style.height = (ih * fill) + "px";
+  img.style.transform =
+    `translate(calc(-50% + ${c.x || 0}%), calc(-50% + ${c.y || 0}%))`;
+}
 
 function paintPreview() {
   const a = ART[sel];
   const box = document.getElementById("prev");
   const src = pending || (a && a.url);
-  box.innerHTML = src
-    ? `<img src="${esc(src)}" style="object-position:center ${esc(pos)}" alt="">
-       <div class="cap">Week ${sel}</div>`
-    : babyArt(sel, 600) + `<div class="cap">Week ${sel}</div>`;
+
+  if (src) {
+    box.innerHTML = `<img id="cropImg" src="${esc(src)}" alt="">
+      <div class="hint">Drag to move it, slide to zoom</div>
+      <div class="cap">Week ${sel}</div>`;
+    const img = document.getElementById("cropImg");
+    const apply = () => layout(img, box, crop);
+    if (img.complete) apply(); else img.onload = apply;
+    wireDrag(box, img);
+  } else {
+    box.innerHTML = babyArt(sel, 600) + `<div class="cap">Week ${sel}</div>`;
+  }
+
+  document.getElementById("zoom").value = Math.round((crop.zoom || 1) * 100);
   document.getElementById("selTitle").textContent = "Week " + sel;
   document.getElementById("selNote").textContent =
     sel === live ? "this week" : (a ? "has a picture" : "using the drawing");
-  document.querySelectorAll("#pos button").forEach(b =>
-    b.setAttribute("aria-pressed", String(b.dataset.p === pos)));
+}
+
+function wireDrag(box, img) {
+  let from = null;
+  const down = e => {
+    from = { x: e.clientX ?? e.touches[0].clientX,
+             y: e.clientY ?? e.touches[0].clientY,
+             cx: crop.x, cy: crop.y };
+    box.classList.add("dragging");
+  };
+  const move = e => {
+    if (!from) return;
+    e.preventDefault();
+    const px = e.clientX ?? e.touches[0].clientX;
+    const py = e.clientY ?? e.touches[0].clientY;
+    const w = img.offsetWidth || 1, h = img.offsetHeight || 1;
+    crop.x = Math.max(-60, Math.min(60, from.cx + (px - from.x) / w * 100));
+    crop.y = Math.max(-60, Math.min(60, from.cy + (py - from.y) / h * 100));
+    layout(img, box, crop);
+  };
+  const up = () => { from = null; box.classList.remove("dragging"); saveCrop(); };
+
+  img.addEventListener("mousedown", down);
+  img.addEventListener("touchstart", down, { passive: true });
+  addEventListener("mousemove", move);
+  addEventListener("touchmove", move, { passive: false });
+  addEventListener("mouseup", up);
+  addEventListener("touchend", up);
+}
+
+document.getElementById("zoom").addEventListener("input", e => {
+  crop.zoom = Number(e.target.value) / 100;
+  const img = document.getElementById("cropImg");
+  if (img) layout(img, document.getElementById("prev"), crop);
+});
+document.getElementById("zoom").addEventListener("change", saveCrop);
+
+document.getElementById("recentre").onclick = () => {
+  crop = { zoom: 1, x: 0, y: 0 };
+  const img = document.getElementById("cropImg");
+  if (img) layout(img, document.getElementById("prev"), crop);
+  saveCrop();
+};
+
+/* only writes once the picture itself is already saved */
+let cropTimer;
+function saveCrop() {
+  if (pending || !ART[sel]) return;
+  clearTimeout(cropTimer);
+  cropTimer = setTimeout(() =>
+    setDoc(doc(db, "weekart", String(sel)), { crop }, { merge: true }), 400);
 }
 
 function paintGrid() {
@@ -117,8 +194,9 @@ function paintGrid() {
     const a = ART[w];
     cells.push(`<button class="wcell ${a ? "" : "empty"} ${w === sel ? "sel" : ""} ${
       w === live ? "now" : ""}" data-w="${w}">
-      ${a ? `<img src="${esc(a.url)}" style="object-position:center ${
-        esc(a.pos || "center")}" alt="">` : ""}
+      ${a ? `<img src="${esc(a.url)}" alt="" style="object-fit:cover;
+        transform:scale(${(a.crop && a.crop.zoom) || 1})
+        translate(${(a.crop && a.crop.x) || 0}%, ${(a.crop && a.crop.y) || 0}%)">` : ""}
       <span class="lab">${w}</span>
     </button>`);
   }
@@ -132,22 +210,14 @@ document.getElementById("grid").addEventListener("click", e => {
   sel = Number(b.dataset.w);
   pending = null;
   document.getElementById("file").value = "";
-  pos = (ART[sel] && ART[sel].pos) || "center";
+  crop = (ART[sel] && ART[sel].crop) || { zoom: 1, x: 0, y: 0 };
   paintPreview(); paintGrid();
-});
-
-document.getElementById("pos").addEventListener("click", async e => {
-  const b = e.target.closest("button"); if (!b) return;
-  pos = b.dataset.p;
-  paintPreview();
-  if (ART[sel] && !pending) {
-    await setDoc(doc(db, "weekart", String(sel)), { pos }, { merge: true });
-  }
 });
 
 document.getElementById("file").addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) { pending = null; paintPreview(); return; }
+  crop = { zoom: 1, x: 0, y: 0 };
   const fr = new FileReader();
   fr.onload = () => { pending = fr.result; paintPreview(); };
   fr.readAsDataURL(f);
@@ -162,7 +232,7 @@ document.getElementById("save").onclick = async () => {
   try {
     const saved = await putFile(f);
     await setDoc(doc(db, "weekart", String(sel)),
-      { url: saved.url, week: sel, pos, by: myName() }, { merge: true });
+      { url: saved.url, week: sel, crop, by: myName() }, { merge: true });
     pending = null;
     document.getElementById("file").value = "";
     document.getElementById("prog").textContent = "";
@@ -184,7 +254,7 @@ document.getElementById("clear").onclick = async () => {
 onSnapshot(query(collection(db, "weekart")), s => {
   ART = {};
   s.docs.forEach(d => ART[Number(d.id)] = d.data());
-  if (!pending) pos = (ART[sel] && ART[sel].pos) || "center";
+  if (!pending) crop = (ART[sel] && ART[sel].crop) || { zoom: 1, x: 0, y: 0 };
   paintPreview(); paintGrid();
 });
 
