@@ -163,7 +163,9 @@
   <!-- what she actually comes back for -->
   <section>
     <div class="panel-head" style="padding:0 .2rem">
-      <h2>Latest</h2>
+      <h2>Latest <span id="newCount" hidden style="font-family:var(--sans);
+        font-size:.68rem;background:var(--gold);color:#fff;border-radius:999px;
+        padding:.1rem .45rem;vertical-align:middle"></span></h2>
       <a href="updates.html?all=1">All updates</a>
     </div>
     <div id="feed"></div>
@@ -335,6 +337,24 @@ onSnapshot(query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(
       <a href="updates.html?all=1">See everything</a></p>`;
     return;
   }
+  /* how many posts from the other person since she last looked */
+  const seenKey = "littleone.lastSeenUpdates";
+  const lastSeen = Number(localStorage.getItem(seenKey) || 0);
+  const unread = s.docs.filter(d => {
+    const u = d.data();
+    if (u.side === side()) return false;
+    const c = u.createdAt;
+    if (!c) return false;
+    const t = c.toDate ? c.toDate().getTime() : Number(c);
+    return t > lastSeen;
+  }).length;
+  const badge = document.getElementById("newCount");
+  if (badge) {
+    badge.textContent = unread ? unread + " new" : "";
+    badge.hidden = !unread;
+  }
+  localStorage.setItem(seenKey, String(Date.now()));
+
   f.innerHTML = fresh.map(sd => {
     const d = sd.data();
     return `<article class="card ${d.side === "him" ? "from-him" : ""}">
@@ -365,7 +385,7 @@ onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
 
 /* one reminder per visit per device, fired when the site is opened */
 async function remind(appt, days) {
-  const key = "littleone.reminded." + appt.date + (appt.time || "");
+  const key = "littleone.reminded." + appt.date + (appt.time || "") + ".d" + days;
   if (localStorage.getItem(key)) return;
   if (!(await askNotify())) return;
   localStorage.setItem(key, "1");
