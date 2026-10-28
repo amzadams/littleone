@@ -129,7 +129,9 @@ onSnapshot(q, snap => {
         qs.length
           ? qs.map((qq, i) => `<div class="qrow">
               <span style="flex:1;font-size:.93rem">${esc(qq)}</span>
-                      ${isAdmin() ? `<button class="x" data-del="${i}" aria-label="Remove">&times;</button>` : ""}
+              <button class="x" data-edq="${i}" aria-label="Edit this question"
+                style="font-size:.74rem;text-decoration:underline">edit</button>
+              <button class="x" data-del="${i}" aria-label="Remove this question">&times;</button>
              </div>`).join("")
           : `<p class="faint" style="margin:.2rem 0 .5rem">Nothing yet. Add them as they come up.</p>`
       }</div>

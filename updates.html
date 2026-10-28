@@ -26,8 +26,8 @@
 <body>
 
 <main class="wrap" id="main" hidden>
-  <h1>Updates</h1>
-  <p class="faint" style="margin-top:-.3rem">Anything either of you wants the other to see.</p>
+  <h1 id="h1">Updates</h1>
+  <p class="faint" style="margin-top:-.3rem" id="sub"></p>
 
   <section class="panel">
     <div class="kinds" id="kinds">
@@ -40,6 +40,9 @@
   </section>
 
   <div id="feed"></div>
+  <p style="text-align:center;margin:1.2rem 0 1.6rem">
+    <a id="flip" href="#" style="font-size:.86rem;color:var(--sage)"></a>
+  </p>
 </main>
 
 <script type="module">
@@ -51,6 +54,17 @@ await requireAuth();
 drawTop(SETUP.herName);
 drawNav("more.html");
 document.getElementById("main").hidden = false;
+
+const ALLMODE = new URLSearchParams(location.search).get("all") === "1";
+document.getElementById("h1").textContent = ALLMODE ? "All updates" : "Updates";
+document.getElementById("sub").textContent = ALLMODE
+  ? "Everything ever posted, oldest kept forever."
+  : "The last day. Older ones move to All updates, nothing is lost.";
+document.getElementById("flip").textContent =
+  ALLMODE ? "Back to the last day" : "See everything ever posted";
+document.getElementById("flip").href = ALLMODE ? "updates.html" : "updates.html?all=1";
+
+if (ALLMODE) document.querySelector(".panel").hidden = true;
 
 let kind = "status";
 document.getElementById("kinds").addEventListener("click", e => {
@@ -76,14 +90,25 @@ document.getElementById("post").onclick = async () => {
 
 const KINDLABEL = { status: "", note: "note", milestone: "milestone" };
 
-const q = query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(60));
+const q = query(collection(db, "updates"), orderBy("createdAt", "desc"),
+                limit(ALLMODE ? 300 : 60));
 onSnapshot(q, snap => {
   const f = document.getElementById("feed");
-  if (snap.empty) {
-    f.innerHTML = `<p class="empty">Nothing yet. Post the first one.</p>`;
+  const cutoff = Date.now() - 86400000;
+  const docs = ALLMODE ? snap.docs : snap.docs.filter(d => {
+    const c = d.data().createdAt;
+    if (!c) return true;
+    const t = c.toDate ? c.toDate().getTime() : Number(c);
+    return t > cutoff;
+  });
+  if (!docs.length) {
+    f.innerHTML = ALLMODE
+      ? `<p class="empty">Nothing yet.</p>`
+      : `<p class="empty">Nothing in the last day.
+         <a href="updates.html?all=1">See everything</a></p>`;
     return;
   }
-  f.innerHTML = snap.docs.map(d => {
+  f.innerHTML = docs.map(d => {
     const u = d.data();
     const tag = KINDLABEL[u.kind] ? " &middot; " + KINDLABEL[u.kind] : "";
     return `<article class="card ${u.side === "him" ? "from-him" : ""}">

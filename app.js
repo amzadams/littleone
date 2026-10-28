@@ -39,7 +39,7 @@ export const SETUP = {
 
   herEmail: "halima@littleone.app",   // the account she signs in with
 
-  clinicName: "Altru Health System",
+  clinicName: "Altru Hospital",
   clinicPhone: "+17017805000"
 };
 

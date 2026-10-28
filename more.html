@@ -103,12 +103,14 @@ drawNav("more.html");
 document.getElementById("main").hidden = false;
 
 /* [href, icon, title, subtitle, id-for-live-subtitle] */
+const ADMIN = isAdmin();
+
 const CORE = [
   ["history.html",      "entries",  "Everything logged", "Every entry, searchable", "histSub"],
   ["log.html",          "food",     "Today",             "Add a meal, symptom, note"],
   ["gallery.html",      "pictures", "Scans and bump",    "Pictures by week",        "picSub"],
   ["updates.html",      "updates",  "Updates",           "What you have told each other"],
-  ["weekart.html",      "bump",     "Week pictures",     "A picture per week",      "artSub"]
+  ["updates-all.html",  "updates",  "All updates",       "Everything ever posted",  "allSub"]
 ];
 const TRACK = [
   ["weight.html",       "weight",   "Weight",      "Log it weekly",            "wSub"],
@@ -124,6 +126,10 @@ const PREP = [
   ["birthplan.html",    "plan",     "Birth plan",    "Her preferences"],
   ["contractions.html", "timer",    "Contractions",  "From week 37"]
 ];
+/* only the owner account manages the week pictures */
+if (ADMIN) CORE.push(
+  ["weekart.html",      "bump",     "Week pictures",     "A picture per week",      "artSub"]);
+
 const HELP = [
   ["local.html",        "local",    "Local",         "Car seat checks, clinic"],
   ["flags.html",        "flags",    "Warning signs", "When to call straight away"],
@@ -182,8 +188,13 @@ document.getElementById("lockNote").textContent = LOCK_MS
 document.getElementById("out").onclick    = () => leave();
 document.getElementById("switch").onclick = () => leave();
 
-onSnapshot(query(collection(db, "weekart")), s => {
-  if (s.size) document.getElementById("artSub").textContent = s.size + " weeks have one";
+if (ADMIN) onSnapshot(query(collection(db, "weekart")), s => {
+  const el = document.getElementById("artSub");
+  if (el && s.size) el.textContent = s.size + " weeks have one";
+});
+onSnapshot(query(collection(db, "updates")), s => {
+  const el = document.getElementById("allSub");
+  if (el && s.size) el.textContent = s.size + " posts kept";
 });
 onSnapshot(query(collection(db, "weights")), s => {
   if (s.size) document.getElementById("wSub").textContent = s.size + " readings";

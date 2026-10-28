@@ -44,6 +44,7 @@
   </div>
 
   <input type="search" id="q" placeholder="Type a food, dish or medicine" autocomplete="off">
+  <p class="faint" id="total" style="margin:.5rem 0 0"></p>
 
   <div class="filters" id="filters" style="margin-top:.7rem">
     <button data-f="all" aria-pressed="true">All</button>
@@ -54,14 +55,38 @@
 
   <div id="list"></div>
 
-  <p class="faint" style="margin-top:1.2rem">
+  <section class="panel" id="miss" hidden style="margin-top:1rem">
+    <h2>Not on the list</h2>
+    <p class="muted" id="missq" style="margin-bottom:.8rem"></p>
+    <div id="links"></div>
+    <hr class="hr">
+    <h3 style="margin-bottom:.3rem">Add it yourself</h3>
+    <p class="faint" style="margin:0 0 .7rem">
+      Once the doctor answers, save it here and it joins the list for good.
+    </p>
+    <input type="text" id="newName" placeholder="What is it called">
+    <div style="display:flex;gap:.5rem;margin-top:.55rem">
+      <select id="newV" style="flex:1">
+        <option value="safe">Fine</option>
+        <option value="care">Careful</option>
+        <option value="no">Avoid</option>
+      </select>
+      <button class="btn" id="save" style="flex:0 0 auto">Save</button>
+    </div>
+    <label class="fl" for="newNote">What the doctor said</label>
+    <input type="text" id="newNote" placeholder="Fine in normal amounts">
+  </section>
+
+  <p class="faint" style="margin:1.2rem 0 1.6rem">
     This list is a guide, not a ruling. Anything that is not here, or anything the
     doctor has said differently about, the doctor wins.
   </p>
 </main>
 
 <script type="module">
-import { requireAuth, drawNav, drawTop, SETUP, esc } from "./app.js";
+import { requireAuth, drawNav, drawTop, SETUP, esc, db, doc, deleteDoc,
+         collection, addDoc, query, onSnapshot, serverTimestamp,
+         toast, myName, isAdmin } from "./app.js";
 
 await requireAuth();
 drawTop(SETUP.herName);
@@ -69,32 +94,80 @@ drawNav("food.html");
 document.getElementById("main").hidden = false;
 
 let mode = "food", filter = "all", term = "";
+let MINE = [];   /* the ones you have added yourselves */
 
 const LABEL = { safe: "fine", care: "careful", no: "avoid" };
 const CLS   = { safe: "v-safe", care: "v-care", no: "v-no" };
 
-function render() {
-  const src = mode === "food" ? FOODS : MEDS;
+let render = function () {
+  const ours = MINE.filter(m => m.d.mode === mode)
+                   .map(m => [m.d.name, m.d.verdict, m.d.note, m.id]);
+  const src = ours.concat(mode === "food" ? FOODS : MEDS);
   const t = term.trim().toLowerCase();
   const hits = src.filter(([n, v, note]) =>
     (filter === "all" || v === filter) &&
     (!t || n.toLowerCase().includes(t) || note.toLowerCase().includes(t))
   );
   const list = document.getElementById("list");
-  if (!hits.length) {
-    list.innerHTML = `<p class="empty">Nothing matches that.
-      If it is not on the list, ask at the next visit.</p>`;
-    return;
-  }
-  list.innerHTML = hits.map(([n, v, note]) => `
+  const miss = document.getElementById("miss");
+
+  list.innerHTML = hits.length ? hits.map(([n, v, note, id]) => `
     <div class="item">
       <div class="top">
-        <span class="nm">${esc(n)}</span>
+        <span class="nm">${esc(n)}${id ? ` <span class="faint">yours</span>` : ""}</span>
         <span class="verdict ${CLS[v]}">${LABEL[v]}</span>
       </div>
       <div class="nt">${esc(note)}</div>
-    </div>`).join("");
-}
+      ${id && isAdmin() ? `<button data-rm="${id}" style="border:none;background:none;
+        color:var(--ink-faint);font-size:.74rem;text-decoration:underline;
+        cursor:pointer;padding:.25rem 0 0">remove</button>` : ""}
+    </div>`).join("") : "";
+
+  /* nothing found and she actually typed something */
+  const t2 = term.trim();
+  if (!hits.length && t2.length > 1) {
+    miss.hidden = false;
+    document.getElementById("missq").textContent =
+      `Nothing here for "${t2}". Check a trusted source, then save the answer.`;
+    document.getElementById("newName").value = t2;
+    const q = encodeURIComponent(t2 + (mode === "food" ? " pregnancy safe" : " in pregnancy"));
+    document.getElementById("links").innerHTML = [
+      ["NHS, pregnancy advice", "https://www.nhs.uk/search/results?q=" + q],
+      ["Mayo Clinic", "https://www.mayoclinic.org/search/search-results?q=" + q],
+      ["MotherToBaby fact sheets", "https://mothertobaby.org/?s=" + encodeURIComponent(t2)]
+    ].map(([t, u]) => `<a class="btn ghost wide" href="${u}" target="_blank"
+         rel="noopener" style="margin-bottom:.45rem">${t}</a>`).join("");
+  } else if (!hits.length) {
+    miss.hidden = true;
+    list.innerHTML = `<p class="empty">Nothing matches that.</p>`;
+  } else {
+    miss.hidden = true;
+  }
+
+  list.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    if (!confirm("Remove this entry?")) return;
+    await deleteDoc(doc(db, "foodnotes", b.dataset.rm));
+    toast("Removed");
+  });
+};
+
+document.getElementById("save").onclick = async () => {
+  const name = document.getElementById("newName").value.trim();
+  if (!name) { toast("Name it first"); return; }
+  await addDoc(collection(db, "foodnotes"), {
+    mode, name,
+    verdict: document.getElementById("newV").value,
+    note: document.getElementById("newNote").value.trim() || "Added by you.",
+    by: myName(), createdAt: serverTimestamp()
+  });
+  document.getElementById("newNote").value = "";
+  toast("Added to your list");
+};
+
+onSnapshot(query(collection(db, "foodnotes")), s => {
+  MINE = s.docs.map(d => ({ id: d.id, d: d.data() }));
+  render();
+});
 
 document.getElementById("switch").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
@@ -115,6 +188,15 @@ document.getElementById("filters").addEventListener("click", e => {
 document.getElementById("q").addEventListener("input", e => {
   term = e.target.value; render();
 });
+
+function counts() {
+  const el = document.getElementById("total");
+  const n = (mode === "food" ? FOODS.length : MEDS.length) +
+            MINE.filter(m => m.d.mode === mode).length;
+  el.textContent = n + (mode === "food" ? " foods and dishes" : " medicines") + " on the list";
+}
+const _render = render;
+render = function () { _render(); counts(); };
 
 render();
 </script>

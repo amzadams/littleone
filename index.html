@@ -72,6 +72,39 @@
   .minibar .track .bar { height: 5px; background: var(--line); border-radius: 999px; overflow: hidden; }
   .minibar .track .bar i { display: block; height: 100%; background: var(--sage); }
 
+  /* the floating post button */
+  .fab {
+    position: fixed; right: 1rem; z-index: 45;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    width: 56px; height: 56px; border-radius: 50%; border: none;
+    background: var(--ink); color: var(--panel);
+    font-size: 1.9rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(24,38,31,.3);
+  }
+  @media (min-width: 720px) { .fab { bottom: 1.6rem; right: calc(50% - 320px); } }
+
+  .sheet {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    align-items: flex-end; justify-content: center;
+    background: rgba(24,38,31,.4);
+  }
+  .sheet.on { display: flex; }
+  .sheet .inner {
+    width: 100%; max-width: var(--wrap);
+    background: var(--panel);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    padding: 1.1rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+  }
+  .sheet .kinds { display: flex; gap: .4rem; margin: .6rem 0 .7rem; }
+  .sheet .kinds button {
+    border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+    border-radius: 999px; padding: .32rem .8rem;
+    font-family: var(--sans); font-size: .8rem; cursor: pointer;
+  }
+  .sheet .kinds button[aria-pressed="true"] {
+    background: var(--ink); border-color: var(--ink); color: var(--panel);
+  }
+
   .wk-strip {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: .7rem; margin-bottom: .3rem;
@@ -131,7 +164,7 @@
   <section>
     <div class="panel-head" style="padding:0 .2rem">
       <h2>Latest</h2>
-      <a href="updates.html">All updates</a>
+      <a href="updates.html?all=1">All updates</a>
     </div>
     <div id="feed"></div>
   </section>
@@ -161,10 +194,31 @@
 
 </main>
 
+<button class="fab" id="fab" aria-label="Post an update">+</button>
+
+<div class="sheet" id="sheet">
+  <div class="inner">
+    <div class="panel-head"><h2>Post an update</h2>
+      <button id="close" style="border:none;background:none;font-size:1.4rem;
+        color:var(--ink-faint);cursor:pointer" aria-label="Close">&times;</button></div>
+    <div class="kinds" id="kinds">
+      <button data-k="status" aria-pressed="true">How I feel</button>
+      <button data-k="note" aria-pressed="false">A note</button>
+      <button data-k="milestone" aria-pressed="false">Milestone</button>
+    </div>
+    <textarea id="fabTxt" placeholder="Felt the first proper kick this morning."></textarea>
+    <button class="btn wide" id="post" style="margin-top:.7rem">Post</button>
+    <p class="faint" style="margin:.6rem 0 0">
+      Shows on the home page for a day, then moves to All updates.
+    </p>
+  </div>
+</div>
+
 <script type="module">
 import { requireAuth, drawNav, drawTop, getProfile, progress, prettyDate,
          SETUP, db, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
-         dayKey, esc, timeAgo, watchUpdatesForNotices, askNotify, notify } from "./app.js";
+         dayKey, esc, timeAgo, watchUpdatesForNotices, askNotify, notify,
+         addDoc, serverTimestamp, myName, side, toast } from "./app.js";
 import { babyArt } from "./illus.js";
 
 await requireAuth();
@@ -238,15 +292,50 @@ addEventListener("scroll", () => {
   });
 }, { passive: true });
 
-/* ---- latest updates, now the first thing under the fold ---- */
-onSnapshot(query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(3)), s => {
+/* ---- the floating post button ---- */
+let fabKind = "status";
+const sheet = document.getElementById("sheet");
+document.getElementById("fab").onclick = () => {
+  sheet.classList.add("on");
+  document.getElementById("fabTxt").focus();
+};
+document.getElementById("close").onclick = () => sheet.classList.remove("on");
+sheet.addEventListener("click", e => { if (e.target === sheet) sheet.classList.remove("on"); });
+
+document.getElementById("kinds").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  fabKind = b.dataset.k;
+  document.querySelectorAll("#kinds button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+});
+
+document.getElementById("post").onclick = async () => {
+  const text = document.getElementById("fabTxt").value.trim();
+  if (!text) { toast("Write something first"); return; }
+  await addDoc(collection(db, "updates"), {
+    text, kind: fabKind, author: myName(), side: side(), createdAt: serverTimestamp()
+  });
+  document.getElementById("fabTxt").value = "";
+  sheet.classList.remove("on");
+  toast("Posted");
+};
+
+/* ---- latest updates, only the last day ---- */
+onSnapshot(query(collection(db, "updates"), orderBy("createdAt", "desc"), limit(12)), s => {
   const f = document.getElementById("feed");
-  if (s.empty) {
-    f.innerHTML = `<p class="empty">Nothing posted yet.
-      <a href="updates.html">Write the first one</a></p>`;
+  const cutoff = Date.now() - 86400000;
+  const fresh = s.docs.filter(d => {
+    const c = d.data().createdAt;
+    if (!c) return true;
+    const t = c.toDate ? c.toDate().getTime() : Number(c);
+    return t > cutoff;
+  }).slice(0, 4);
+  if (!fresh.length) {
+    f.innerHTML = `<p class="empty">Nothing in the last day.
+      <a href="updates.html?all=1">See everything</a></p>`;
     return;
   }
-  f.innerHTML = s.docs.map(sd => {
+  f.innerHTML = fresh.map(sd => {
     const d = sd.data();
     return `<article class="card ${d.side === "him" ? "from-him" : ""}">
       <div class="meta">${esc(d.author)} &middot; ${timeAgo(d.createdAt)}</div>
