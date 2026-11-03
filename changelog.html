@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What's new</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="changelog.js"></script>
+<style>
+  .rel { margin-bottom: 1.6rem; }
+  .rel .head { display: flex; align-items: baseline; justify-content: space-between;
+    gap: .7rem; border-bottom: 1px solid var(--line); padding-bottom: .35rem; }
+  .rel h2 { margin: 0; font-size: 1.15rem; }
+  .rel .meta { font-size: .75rem; color: var(--ink-faint); }
+  .rel .it { display: flex; gap: .55rem; align-items: flex-start;
+    padding: .62rem 0; border-bottom: 1px solid var(--line); font-size: .94rem; }
+  .rel.cur { outline: 2px solid var(--gold); outline-offset: .7rem; border-radius: 2px; }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>What's new</h1>
+  <p class="faint" style="margin-top:-.3rem">Everything that has changed, newest first.</p>
+  <div id="list"></div>
+  <button class="btn ghost wide" id="again" style="margin-bottom:1.6rem">Show me the latest one again</button>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, esc, prettyDate, showWhatsNew } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const TAG = { new: "new", fix: "fixed", better: "better" };
+const CLS = { new: "v-safe", fix: "v-no", better: "v-care" };
+
+document.getElementById("list").innerHTML = CHANGELOG.map((r, i) => `
+  <section class="panel rel ${i === 0 ? "cur" : ""}">
+    <div class="head">
+      <h2>${esc(r.title)}</h2>
+      <span class="meta">${esc(r.v)} &middot; ${prettyDate(r.date)}</span>
+    </div>
+    ${r.items.map(([k, t]) => `
+      <div class="it">
+        <span class="verdict ${CLS[k]}">${TAG[k]}</span>
+        <span>${esc(t)}</span>
+      </div>`).join("")}
+  </section>`).join("");
+
+document.getElementById("again").onclick = () => showWhatsNew(true);
+</script>
+</body>
+</html>

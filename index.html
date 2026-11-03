@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="data.js"></script>
+<script src="changelog.js"></script>
 <style>
   /* ---- the hero that collapses away on scroll ---- */
   .hero {
@@ -177,6 +178,7 @@
       <a href="appointments.html">All visits</a>
     </div>
     <div id="nextAppt" class="muted">Loading</div>
+    <p class="faint" id="comingUp" style="margin:.8rem 0 0"></p>
   </section>
 
   <section class="panel">
@@ -220,7 +222,7 @@
 import { requireAuth, drawNav, drawTop, getProfile, progress, prettyDate,
          SETUP, db, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
          dayKey, esc, timeAgo, watchUpdatesForNotices, askNotify, notify,
-         addDoc, serverTimestamp, myName, side, toast } from "./app.js";
+         addDoc, serverTimestamp, myName, side, toast, showWhatsNew } from "./app.js";
 import { babyArt } from "./illus.js";
 
 await requireAuth();
@@ -293,6 +295,18 @@ addEventListener("scroll", () => {
     ticking = false;
   });
 }, { passive: true });
+
+/* ---- the next test on the usual schedule ---- */
+onSnapshot(query(collection(db, "schedule")), s => {
+  if (typeof SCHEDULE === "undefined") return;
+  const done = new Set(s.docs.filter(d => d.data().done).map(d => d.id));
+  const nx = SCHEDULE.find(x => !done.has(x[0]) && p.week <= x[2]);
+  const el = document.getElementById("comingUp");
+  el.innerHTML = nx
+    ? `Coming up: ${esc(nx[3])}, weeks ${nx[1]}${nx[2] !== nx[1] ? " to " + nx[2] : ""}.
+       <a href="schedule.html">See the schedule</a>`
+    : "";
+});
 
 /* ---- the floating post button ---- */
 let fabKind = "status";
@@ -415,6 +429,7 @@ onSnapshot(query(collection(db, "entries"), orderBy("at", "desc"), limit(200)), 
 });
 
 watchUpdatesForNotices();
+showWhatsNew();
 </script>
 </body>
 </html>

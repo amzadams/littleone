@@ -238,6 +238,52 @@ export async function removeFile(path) {
   try { await deleteObject(sref(store, path)); } catch (e) {}
 }
 
+/* ---------- staying up to date ------------------------------
+   Every time the app opens it checks changelog.js on the server,
+   skipping any cached copy. If the version at the top is newer
+   than what this phone is running, it refreshes every file and
+   reloads once. To ship an update, just bump v in changelog.js.
+   ------------------------------------------------------------ */
+
+const FILES = [
+  "app.js", "data.js", "illus.js", "changelog.js", "style.css", "manifest.json",
+  "index.html", "log.html", "week.html", "weekart.html", "food.html",
+  "history.html", "gallery.html", "updates.html", "updates-all.html",
+  "appointments.html", "schedule.html", "changelog.html", "weight.html",
+  "kicks.html", "names.html", "getready.html", "registry.html", "bag.html",
+  "birthplan.html", "contractions.html", "local.html", "flags.html",
+  "settings.html", "more.html", "login.html"
+];
+const VER_KEY = "littleone.runningVersion";
+
+async function checkForUpdate() {
+  try {
+    const r = await fetch("changelog.js?check=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    const m = (await r.text()).match(/v:\s*"([^"]+)"/);
+    if (!m) return;
+    const latest = m[1];
+    const running = localStorage.getItem(VER_KEY);
+
+    if (running === latest) return;
+
+    /* first ever open: just remember it, nothing to refresh */
+    if (!running) { localStorage.setItem(VER_KEY, latest); return; }
+
+    /* newer version on the server: refresh the cached files, then reload once.
+       The version is written first so this can never loop. */
+    localStorage.setItem(VER_KEY, latest);
+    await Promise.all(FILES.map(f => fetch(f, { cache: "reload" }).catch(() => {})));
+    location.reload();
+  } catch (e) { /* offline or blocked, carry on with what we have */ }
+}
+
+/* check when the app opens, and again whenever she switches back to it */
+checkForUpdate();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) checkForUpdate();
+});
+
 export let ME = null;
 
 /* How long a sign in lasts.
@@ -499,6 +545,57 @@ export function drawTop(sub) {
       location.reload();
     };
   }
+}
+
+/* ---- what's new -------------------------------------------
+   Shows once per person per device for each new version.
+   Needs changelog.js loaded on the page.
+   ------------------------------------------------------------ */
+
+const CL_KEY = "littleone.seenVersion";
+
+export function unseenVersion() {
+  if (typeof CL_LATEST === "undefined") return null;
+  return localStorage.getItem(CL_KEY) === CL_LATEST ? null : CL_LATEST;
+}
+
+export function markVersionSeen() {
+  try { localStorage.setItem(CL_KEY, CL_LATEST); } catch (e) {}
+}
+
+export function showWhatsNew(force) {
+  if (typeof CHANGELOG === "undefined") return;
+  if (!force && !unseenVersion()) return;
+  const rel = CHANGELOG[0];
+  const TAG = { new: "new", fix: "fixed", better: "better" };
+
+  const box = el(`
+    <div class="sheet on" id="clSheet">
+      <div class="inner">
+        <div class="panel-head">
+          <h2>What's new</h2>
+          <span class="faint">${esc(rel.v)}</span>
+        </div>
+        <p class="faint" style="margin:-.3rem 0 .8rem">${esc(rel.title)}</p>
+        <div class="rows" style="max-height:46vh;overflow:auto">
+          ${rel.items.map(([k, t]) => `
+            <div class="row" style="align-items:flex-start">
+              <div class="row-main">
+                <span class="verdict ${k === "fix" ? "v-no" : k === "better" ? "v-care" : "v-safe"}"
+                  style="margin-right:.4rem">${TAG[k]}</span>
+                <span style="font-size:.93rem">${esc(t)}</span>
+              </div>
+            </div>`).join("")}
+        </div>
+        <button class="btn wide" id="clOk" style="margin-top:.9rem">Got it</button>
+        <p style="text-align:center;margin:.7rem 0 0">
+          <a href="changelog.html" style="font-size:.84rem;color:var(--sage)">See everything that changed</a>
+        </p>
+      </div>
+    </div>`);
+
+  document.body.appendChild(box);
+  box.querySelector("#clOk").onclick = () => { markVersionSeen(); box.remove(); };
 }
 
 /* ---- browser notifications ---- */

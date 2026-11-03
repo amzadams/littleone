@@ -326,3 +326,60 @@ const GEAR = [
   ["Car and home", "Route to the hospital, and a backup", "free", "Drive it once in winter conditions."],
   ["Car and home", "Snow brush and a full tank from week 36", "free", "Labour does not wait for a cleared driveway."]
 ];
+
+/* ---- the usual US test and visit schedule ----
+   [id, from week, to week, title, what it is, questions]
+   Clinics vary. This is the common pattern, not her clinic's plan. */
+const SCHEDULE = [
+  ["first", 8, 12, "First prenatal visit",
+   "Dating scan to confirm the due date, plus blood tests for blood type, Rh factor, blood count, rubella immunity, hepatitis B, HIV and syphilis, and a urine test.",
+   ["What is her blood type and Rh factor?", "Is she immune to rubella?", "Is her iron level okay?", "Does the due date match what we had?"]],
+
+  ["nipt", 10, 13, "Genetic screening, optional",
+   "A blood test (NIPT) that screens for chromosome conditions. Optional. It can also tell you the sex early if you want to know.",
+   ["Is NIPT covered by our insurance?", "What does it screen for, and what does it not?", "What happens if a result comes back high risk?"]],
+
+  ["nt", 11, 14, "Nuchal scan, optional",
+   "An ultrasound measuring fluid at the back of the baby's neck, often paired with blood work as an early screen.",
+   ["Is this worth doing if we have already had NIPT?"]],
+
+  ["quad", 15, 22, "Second trimester blood screen",
+   "Often called the quad screen or AFP test. Checks for neural tube defects. Sometimes skipped if NIPT was done.",
+   ["Do we still need the AFP test after NIPT?"]],
+
+  ["anatomy", 18, 22, "Anatomy scan",
+   "The big ultrasound. Heart, spine, brain, kidneys, limbs and placenta position. Usually 30 to 45 minutes. Normally when you can learn the sex.",
+   ["Is the placenta clear of the cervix?", "Is the baby growing on track for the dates?", "Is the amniotic fluid level normal?", "Did the due date change from what you measured?", "Can we have printed or digital copies of the images?", "Can you check the cervix length?"]],
+
+  ["glucose", 24, 28, "Glucose test",
+   "Screens for gestational diabetes. She drinks a sweet drink and has blood taken an hour later. Some clinics ask her to fast first.",
+   ["Does she need to fast before the glucose test?", "What happens if the result is borderline?"]],
+
+  ["rh", 28, 28, "Rh injection, if Rh negative",
+   "Only if her blood type is Rh negative. Protects future pregnancies. A repeat blood count is often done around now too.",
+   ["Does she need the Rh injection?", "Has her iron improved since the first tests?"]],
+
+  ["tdap", 27, 36, "Tdap vaccine",
+   "Whooping cough protection passed to the baby. Recommended in every pregnancy, ideally early in this window.",
+   ["Can she have the Tdap at this visit?", "Should Mann get Tdap too, since he will be holding the baby?"]],
+
+  ["rsv", 32, 36, "RSV vaccine, seasonal",
+   "Offered between weeks 32 and 36 if the timing falls in RSV season, roughly September to January. Protects the newborn.",
+   ["Is she due for the RSV vaccine given the season?"]],
+
+  ["twoweekly", 28, 36, "Visits every two weeks",
+   "Appointments step up. Blood pressure, urine and the baby's growth and heartbeat each time.",
+   ["Is her blood pressure staying normal?", "Is the bump measuring right?"]],
+
+  ["gbs", 36, 37, "Group B strep swab",
+   "A quick swab. If positive she gets antibiotics in labour. Very common and easily handled.",
+   ["When will we get the GBS result?", "What does a positive result change on the day?"]],
+
+  ["weekly", 36, 40, "Weekly visits",
+   "Checking the baby's position, head down or not, and the cervix if she wants.",
+   ["Is the baby head down?", "When should we come in once labour starts?", "What is the plan if she goes past the due date?"]],
+
+  ["late", 40, 41, "Past the due date",
+   "Extra monitoring, and a conversation about induction, usually around 41 weeks.",
+   ["When would you suggest induction?", "What does monitoring involve from here?"]]
+];

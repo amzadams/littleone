@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schedule</title>
+<meta name="theme-color" content="#EEF1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script>
+<style>
+  .tl { position: relative; padding-left: 1.4rem; }
+  .tl::before { content: ""; position: absolute; left: .42rem; top: .4rem; bottom: .4rem;
+    width: 2px; background: var(--line); }
+  .step { position: relative; margin-bottom: 1rem; }
+  .step::before { content: ""; position: absolute; left: -1.22rem; top: 1.25rem;
+    width: 12px; height: 12px; border-radius: 50%; background: var(--panel);
+    border: 2px solid var(--line); }
+  .step.past::before { background: var(--line); }
+  .step.now::before { background: var(--gold); border-color: var(--gold);
+    box-shadow: 0 0 0 4px var(--gold-soft); }
+  .step.done::before { background: var(--sage); border-color: var(--sage); }
+  .step.past .panel { opacity: .66; }
+  .step.now .panel { border-color: var(--gold); }
+  .wks { font-size: .76rem; color: var(--ink-faint); margin-bottom: .15rem; }
+  .step.now .wks { color: var(--gold); font-weight: 600; }
+  .qs { margin: .6rem 0 0; padding-left: 1.1rem; font-size: .88rem; color: var(--ink-soft); }
+  .qs li { margin: .2rem 0; }
+  .acts { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+  .acts .btn { padding: .45rem .85rem; font-size: .82rem; }
+  .chooser { margin-top: .7rem; }
+  .chooser button { display: block; width: 100%; text-align: left; margin-bottom: .4rem; }
+</style>
+</head>
+<body>
+<main class="wrap" id="main" hidden>
+  <h1>Schedule</h1>
+  <p class="faint" style="margin-top:-.3rem" id="sub"></p>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Coming up</h2></div>
+    <div id="next"></div>
+  </section>
+
+  <div class="tl" id="tl"></div>
+
+  <p class="faint" style="margin:0 0 1.6rem">
+    This is the usual US pattern. Her clinic may do things in a different order or skip
+    some. When they tell you a date, add it as a visit and the questions go with it.
+  </p>
+</main>
+
+<script type="module">
+import { requireAuth, drawNav, drawTop, SETUP, db, doc, setDoc, updateDoc, addDoc,
+         collection, query, orderBy, onSnapshot, getProfile, progress,
+         dayKey, prettyDate, toast, esc, myName } from "./app.js";
+
+await requireAuth();
+drawTop(SETUP.herName); drawNav("more.html");
+document.getElementById("main").hidden = false;
+
+const prof = await getProfile();
+const due = prof.dueDate || SETUP.dueDate;
+const p = progress(due);
+const todayKey = dayKey();
+let DONE = {}, APPTS = [], open = null;
+
+document.getElementById("sub").textContent =
+  "She is in week " + p.week + ". What usually happens, and when.";
+
+/* the calendar date a given week begins on */
+function dateOfWeek(w) {
+  const d = new Date(due + "T00:00:00");
+  d.setDate(d.getDate() - (280 - w * 7));
+  return d;
+}
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+                 "-" + String(d.getDate()).padStart(2, "0");
+const shortD = d => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+function status(item) {
+  const [id, from, to] = item;
+  if (DONE[id]) return "done";
+  if (p.week > to) return "past";
+  if (p.week >= from && p.week <= to) return "now";
+  return "next";
+}
+
+function paint() {
+  /* the next thing that is not done and not over */
+  const upcoming = SCHEDULE.filter(x => !DONE[x[0]] && p.week <= x[2]);
+  const nx = upcoming[0];
+  document.getElementById("next").innerHTML = nx
+    ? `<p style="font-family:var(--serif);font-size:1.2rem;margin:0">${esc(nx[3])}</p>
+       <p class="muted" style="margin:.2rem 0 0">
+         Weeks ${nx[1]}${nx[2] !== nx[1] ? " to " + nx[2] : ""},
+         ${shortD(dateOfWeek(nx[1]))} to ${shortD(dateOfWeek(nx[2] + 1))}
+         ${p.week >= nx[1] ? " &middot; <strong style='color:var(--gold)'>now</strong>" :
+           " &middot; in about " + Math.max(1, nx[1] - p.week) + " weeks"}</p>`
+    : `<p class="muted">Nothing left on the schedule.</p>`;
+
+  document.getElementById("tl").innerHTML = SCHEDULE.map(item => {
+    const [id, from, to, title, what, qs] = item;
+    const st = status(item);
+    const range = from === to ? "Week " + from : "Weeks " + from + " to " + to;
+    return `<div class="step ${st}">
+      <div class="panel" style="margin-bottom:0">
+        <div class="wks">${range} &middot; ${shortD(dateOfWeek(from))} to ${
+          shortD(dateOfWeek(to + 1))}${st === "now" ? " &middot; now" : ""}${
+          st === "done" ? " &middot; done" : ""}</div>
+        <h2 style="margin:0 0 .3rem">${esc(title)}</h2>
+        <p class="muted" style="margin:0">${esc(what)}</p>
+        ${qs.length ? `<ul class="qs">${qs.map(q => `<li>${esc(q)}</li>`).join("")}</ul>` : ""}
+        <div class="acts">
+          ${st !== "past" && st !== "done"
+            ? `<button class="btn" data-add="${id}">Add the questions to a visit</button>` : ""}
+          <button class="btn ghost" data-done="${id}">${DONE[id] ? "Not done" : "Mark done"}</button>
+        </div>
+        ${open === id ? chooser(item) : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function chooser(item) {
+  const ahead = APPTS.filter(a => a.d.date >= todayKey);
+  return `<div class="chooser">
+    <p class="faint" style="margin:.2rem 0 .5rem">Which visit?</p>
+    ${ahead.map(a => `<button class="btn ghost" data-into="${a.id}" data-item="${item[0]}">
+        ${esc(a.d.title || "Visit")}, ${prettyDate(a.d.date)}</button>`).join("")}
+    <button class="btn ghost" data-new="${item[0]}">
+      A new visit around ${prettyDate(iso(dateOfWeek(Math.max(item[1], p.week))))}</button>
+    <button class="btn ghost" data-close="1" style="color:var(--ink-faint)">Cancel</button>
+  </div>`;
+}
+
+/* merge without doubling up questions that are already there */
+function merged(existing, add) {
+  const seen = new Set((existing || []).map(q => q.trim().toLowerCase()));
+  return [...(existing || []), ...add.filter(q => !seen.has(q.trim().toLowerCase()))];
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const find = id => SCHEDULE.find(x => x[0] === id);
+
+  if (t.dataset.add)   { open = open === t.dataset.add ? null : t.dataset.add; paint(); return; }
+  if (t.dataset.close) { open = null; paint(); return; }
+
+  if (t.dataset.done) {
+    const id = t.dataset.done;
+    DONE[id] = !DONE[id];
+    paint();
+    await setDoc(doc(db, "schedule", id), { done: DONE[id], by: myName() }, { merge: true });
+    return;
+  }
+
+  if (t.dataset.into) {
+    const item = find(t.dataset.item);
+    const a = APPTS.find(x => x.id === t.dataset.into);
+    const qs = merged(a.d.questions, item[5]);
+    const added = qs.length - (a.d.questions || []).length;
+    await updateDoc(doc(db, "appointments", a.id), { questions: qs });
+    open = null; paint();
+    toast(added ? added + " questions added" : "They were already there");
+    return;
+  }
+
+  if (t.dataset.new) {
+    const item = find(t.dataset.new);
+    await addDoc(collection(db, "appointments"), {
+      title: item[3],
+      date: iso(dateOfWeek(Math.max(item[1], p.week))),
+      time: "", place: SETUP.clinicName,
+      questions: item[5].slice(), notes: "", addedBy: myName()
+    });
+    open = null; paint();
+    toast("Visit added. Change the date once the clinic confirms it.");
+  }
+});
+
+onSnapshot(query(collection(db, "schedule")), s => {
+  DONE = {}; s.docs.forEach(d => { if (d.data().done) DONE[d.id] = true; });
+  paint();
+});
+onSnapshot(query(collection(db, "appointments"), orderBy("date", "asc")), s => {
+  APPTS = s.docs.map(d => ({ id: d.id, d: d.data() }));
+  paint();
+});
+paint();
+</script>
+</body>
+</html>
