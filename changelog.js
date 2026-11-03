@@ -14,7 +14,8 @@ const CHANGELOG = [
     title: "Updates arrive on their own",
     items: [
       ["better", "New versions now load by themselves. No more closing and reopening the app to see changes."],
-      ["better", "This popup has a Later button, and stops by itself after three times. It always stays under What's new in Tools."]
+      ["better", "This popup has a Later button, and stops by itself after three times. It always stays under What's new in Tools."],
+      ["better", "Home is tidier. The week details card is gone since Open on the picture shows all of it. The week number now sits on the picture."]
     ]
   },
   {

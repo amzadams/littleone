@@ -106,14 +106,6 @@
     background: var(--ink); border-color: var(--ink); color: var(--panel);
   }
 
-  .wk-strip {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: .7rem; margin-bottom: .3rem;
-  }
-  .wk-strip .big { font-family: var(--serif); font-size: 1.55rem; }
-  .wk-strip .right { font-size: .82rem; color: var(--ink-faint); text-align: right; }
-  .prog { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin: .55rem 0 .2rem; }
-  .prog i { display: block; height: 100%; background: var(--sage); }
 </style>
 </head>
 <body>
@@ -149,16 +141,6 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="wk-strip">
-        <span class="big" id="wkBig"></span>
-        <span class="right" id="wkRight"></span>
-      </div>
-      <div class="prog"><i id="progBar"></i></div>
-      <p class="muted" id="babyText" style="margin:.8rem 0 .4rem"></p>
-      <p class="muted" id="momText" style="margin:0 0 .4rem"></p>
-      <p class="muted" id="tipText" style="margin:0"></p>
-    </section>
   </div>
 
   <!-- what she actually comes back for -->
@@ -265,19 +247,10 @@ getDoc(doc(db, "weekart", String(p.week))).then(sn => {
 }).catch(() => {});
 document.getElementById("dayBig").textContent = "Day " + p.totalDays;
 document.getElementById("daySmall").textContent =
-  p.daysLeft + " days to go \u00b7 due " + prettyDate(p.due);
+  "Week " + p.week + (p.day ? " and " + p.day + (p.day === 1 ? " day" : " days") : "") +
+  " \u00b7 " + p.daysLeft + " days to go";
 
-/* ---- this week ---- */
-const w = WEEKS[p.week] || WEEKS[40];
-document.getElementById("wkBig").textContent =
-  "Week " + p.week + (p.day ? " and " + p.day + (p.day === 1 ? " day" : " days") : "");
-document.getElementById("wkRight").innerHTML =
-  "trimester " + p.trimester + "<br>about the size of " + esc(w[0]);
 const pct = Math.round(p.totalDays / 280 * 100);
-document.getElementById("progBar").style.width = pct + "%";
-document.getElementById("babyText").textContent = w[1];
-document.getElementById("momText").textContent = w[2];
-document.getElementById("tipText").textContent = w[3];
 
 /* ---- the compact bar ---- */
 document.getElementById("pip").innerHTML = babyArt(p.week, 80);
