@@ -563,10 +563,22 @@ export function markVersionSeen() {
   try { localStorage.setItem(CL_KEY, CL_LATEST); } catch (e) {}
 }
 
+const CL_MAX_SHOWS = 3;    /* after this many opens it retires on its own */
+
 export function showWhatsNew(force) {
   if (typeof CHANGELOG === "undefined") return;
   if (!force && !unseenVersion()) return;
   const rel = CHANGELOG[0];
+
+  /* count how many times this version has popped up on this phone */
+  const countKey = "littleone.clShown." + CL_LATEST;
+  let shown = Number(localStorage.getItem(countKey) || 0);
+  if (!force) {
+    if (shown >= CL_MAX_SHOWS) { markVersionSeen(); return; }
+    shown += 1;
+    try { localStorage.setItem(countKey, String(shown)); } catch (e) {}
+  }
+  const left = CL_MAX_SHOWS - shown;
   const TAG = { new: "new", fix: "fixed", better: "better" };
 
   const box = el(`
@@ -587,15 +599,26 @@ export function showWhatsNew(force) {
               </div>
             </div>`).join("")}
         </div>
-        <button class="btn wide" id="clOk" style="margin-top:.9rem">Got it</button>
-        <p style="text-align:center;margin:.7rem 0 0">
-          <a href="changelog.html" style="font-size:.84rem;color:var(--sage)">See everything that changed</a>
+        <div style="display:flex;gap:.5rem;margin-top:.9rem">
+          <button class="btn" id="clOk" style="flex:1">Got it</button>
+          ${force ? "" : `<button class="btn ghost" id="clLater" style="flex:0 0 auto">Later</button>`}
+        </div>
+        <p class="faint" style="text-align:center;margin:.6rem 0 0">
+          ${force ? "" : left > 0
+            ? "Later shows it again next time, " + left + (left === 1 ? " more time." : " more times.")
+            : "This is the last time it pops up."}
+          It always stays in <a href="changelog.html" style="color:var(--sage)">What's new</a> under Tools.
         </p>
       </div>
     </div>`);
 
   document.body.appendChild(box);
   box.querySelector("#clOk").onclick = () => { markVersionSeen(); box.remove(); };
+  const later = box.querySelector("#clLater");
+  if (later) later.onclick = () => {
+    if (shown >= CL_MAX_SHOWS) markVersionSeen();
+    box.remove();
+  };
 }
 
 /* ---- browser notifications ---- */

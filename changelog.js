@@ -13,7 +13,8 @@ const CHANGELOG = [
     date: "2026-11-02",
     title: "Updates arrive on their own",
     items: [
-      ["better", "New versions now load by themselves. No more closing and reopening the app to see changes."]
+      ["better", "New versions now load by themselves. No more closing and reopening the app to see changes."],
+      ["better", "This popup has a Later button, and stops by itself after three times. It always stays under What's new in Tools."]
     ]
   },
   {
